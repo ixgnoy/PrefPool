@@ -11,6 +11,9 @@ import { hashToken, newToken } from './tokens.js';
 import type { CampaignRow } from './views.js';
 
 const GRACE_MS = 86_400_000; // settle window: deadline .. deadline + 24 h, then the company may refund
+/** A buyer who keeps probing the screening waits: at most this many rejected drafts per rolling window. */
+const REJECT_LIMIT = 10;
+const REJECT_WINDOW_MS = 86_400_000;
 
 const questionSchema = z.object({
   id: z.string().regex(/^q[1-9]$/),
@@ -60,16 +63,23 @@ export async function setState(deps: Deps, id: string, state: string, extra: Rec
  * can view results). The access token (buying the report over x402) is returned once and only its hash is stored.
  */
 export async function createCampaign(deps: Deps, spec: CampaignSpec, buyerAddress: string) {
+  const now = deps.now();
+  const [{ n } = { n: 0 }] = await deps.db.query<{ n: number | string }>(
+    `select count(*) as n from campaigns where buyer_address = $1 and state = 'REJECTED' and created_at > to_timestamp($2 / 1000.0)`,
+    [buyerAddress, now - REJECT_WINDOW_MS]);
+  if (Number(n) >= REJECT_LIMIT) {
+    throw new HttpError(429, 'TOO_MANY_REJECTED', `${REJECT_LIMIT} rejected drafts in 24 hours; fix the questions and try again tomorrow`);
+  }
   const id = randomHex32();
-  const reasons = screenCampaign(spec, deps.now());
+  const reasons = screenCampaign(spec, now);
   const warnings = screenWarnings(spec);
   const accessToken = newToken();
   const state = reasons.length ? 'REJECTED' : 'AWAITING_FUNDING';
   await deps.db.query(
-    `insert into campaigns (id, spec, state, buyer_address, buyer_pkh, buyer_stake, access_token_hash, reject_reasons, deadline_ms, refund_after_ms, lint_warnings)
-     values ($1, $2::jsonb, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11::jsonb)`,
+    `insert into campaigns (id, spec, state, buyer_address, buyer_pkh, buyer_stake, access_token_hash, reject_reasons, deadline_ms, refund_after_ms, lint_warnings, created_at)
+     values ($1, $2::jsonb, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11::jsonb, to_timestamp($12 / 1000.0))`,
     [id, JSON.stringify(spec), state, buyerAddress, buyerAddress, null, hashToken(accessToken), // buyer_pkh/buyer_stake: legacy columns
-      JSON.stringify(reasons), spec.deadlineMs, spec.deadlineMs + GRACE_MS, JSON.stringify(warnings)],
+      JSON.stringify(reasons), spec.deadlineMs, spec.deadlineMs + GRACE_MS, JSON.stringify(warnings), now], // created_at on the server clock: the throttle window uses it
   );
   return { id, state, reasons, warnings, accessToken };
 }

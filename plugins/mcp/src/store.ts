@@ -6,6 +6,11 @@ import type { AudienceProfile, OwnerPolicy } from '@as/shared';
 /** Local plugin state in ${CLAUDE_PLUGIN_DATA}: the owner policy and profile never leave this machine. */
 export interface LocalState {
   policy: OwnerPolicy | null; day: string; answeredToday: number; decided: string[];
+  /**
+   * Campaigns the agent explicitly declined with abstain_campaign: final, never answered afterwards. Policy and tier
+   * abstains (evaluate_campaign) stay in `decided` only, so the owner can still answer after changing policy or verifying.
+   */
+  abstained?: string[];
   /** Owner-reviewed audience attributes (country, age band, occupation), matched with `matchesAudience` from @as/shared. */
   profile?: AudienceProfile;
   /** Opt-in, like the web agent's "Match campaigns to my profile" toggle. Off: campaigns are not audience-matched. */

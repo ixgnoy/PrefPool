@@ -56,6 +56,9 @@ export const REASON_LABEL: Record<AbstainReason, string> = {
   no_matching_profile: 'No matching profile',
   unverified: 'Not a verified human',
   uncalibrated: 'Agent not calibrated',
+  task_request: 'Task request',
+  credential_ask: 'Asked for secrets',
+  unknown_answer: "Didn't know the answer",
   other: 'Other',
 };
 /** Where each abstain reason is controlled, for "edit rule" links. */
@@ -67,6 +70,10 @@ export const REASON_RULE: Record<AbstainReason, { label: string; href: string }>
   no_matching_profile: { label: 'Profile', href: '/seller/guardrails#profile' },
   unverified: { label: 'Verify with World ID', href: '/seller/agent#personhood' },
   uncalibrated: { label: 'Calibrate your agent', href: '/seller/calibration' },
+  // Declined by the agent itself (abstain_campaign): nothing to loosen, the guardrails page explains the limits.
+  task_request: { label: 'Guardrails', href: '/seller/guardrails' },
+  credential_ask: { label: 'Guardrails', href: '/seller/guardrails' },
+  unknown_answer: { label: 'Guardrails', href: '/seller/guardrails' },
   other: { label: 'Guardrails', href: '/seller/guardrails' },
 };
 export const bucketOf = (reason: string | null): AbstainReason =>
@@ -74,7 +81,9 @@ export const bucketOf = (reason: string | null): AbstainReason =>
     : reason?.startsWith('category not allowed') ? 'category_not_allowed'
       : reason?.startsWith('reward') ? 'reward_below_minimum'
         : reason?.startsWith('daily limit') ? 'daily_limit' : reason?.startsWith('no matching profile') ? 'no_matching_profile'
-          : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated' : 'other';
+          : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated'
+            : reason === 'task request' ? 'task_request' : reason === 'asks for secrets' ? 'credential_ask'
+              : reason === 'does not know the answer' ? 'unknown_answer' : 'other';
 
 export type PreviewCampaign = Pick<CampaignSpec, 'category' | 'questions' | 'rewardLamports'>;
 export type Decision = { kind: 'answer' } | { kind: 'abstain'; reason: AbstainReason; text: string };

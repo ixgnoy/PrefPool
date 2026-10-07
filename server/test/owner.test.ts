@@ -99,6 +99,18 @@ describe('seller: activity and earnings', () => {
     expect(totals.earningsByDay).toHaveLength(30);
     expect(totals.earningsByDay.at(-1).lamports).toBe('1500000');
   });
+  it("buckets the agent's own abstain reasons (abstain_campaign)", async () => {
+    const t = await setup();
+    const { agentId } = await t.register();
+    const reasons = ['task request', 'asks for secrets', 'does not know the answer', 'asks who the owner is'];
+    for (const reason of reasons) {
+      const c = await t.newCampaign();
+      await t.setState(c.campaignId, 'ACTIVE');
+      await t.decide(c.campaignId, agentId, 'abstain', reason);
+    }
+    const { totals } = (await request(t.app).get('/api/agents/mine/activity').set(t.s).expect(200)).body;
+    expect(totals.abstainReasons).toMatchObject({ task_request: 1, credential_ask: 1, unknown_answer: 1, other: 1, blocked_category: 0 });
+  });
 });
 
 describe('buyer: campaign list', () => {

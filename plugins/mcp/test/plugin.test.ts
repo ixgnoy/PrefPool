@@ -58,7 +58,7 @@ describe('agent-survey MCP plugin', () => {
   it('exposes respondent and researcher tools', async () => {
     const { client } = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')) });
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(['calibration_pending', 'calibration_submit', 'campaign_status', 'draft_campaign', 'evaluate_campaign', 'fund_campaign', 'get_policy', 'get_report', 'list_campaigns', 'set_policy', 'submit_answer']);
+    expect(names).toEqual(['abstain_campaign', 'calibration_pending', 'calibration_submit', 'campaign_status', 'draft_campaign', 'evaluate_campaign', 'fund_campaign', 'get_policy', 'get_report', 'list_campaigns', 'set_policy', 'submit_answer']);
   });
 
   it('wraps every campaign string in per-call untrusted markers', async () => {
@@ -210,6 +210,30 @@ describe('agent-survey MCP plugin', () => {
     expect(canonical[expected.q1]).toBe(shown[q1]); // the sealed index names the option the agent picked
     const { copies } = (await request(w.app).get('/api/agents/mine/answer-copies').set({ Authorization: `Bearer ${w.session}` })).body;
     expect(openEnvelope(ownerKey.privateKey, copies[0].envelope)).toEqual(expected);
+    await w.srv.close();
+  });
+
+  it('abstain_campaign records a content-free reason and blocks a later answer', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
+    expect((await call('abstain_campaign', { campaignId: w.campaignId, reason: 'nonsense' })).isError).toBe(true); // fixed reasons only
+    expect((await call('abstain_campaign', { campaignId: w.campaignId, reason: 'task_request' })).json).toEqual({ abstained: true, reason: 'task request' });
+    const rows = await w.deps.db.query<{ kind: string; reason: string }>(`select kind, reason from agent_decisions where campaign_id = $1`, [w.campaignId]);
+    expect(rows).toEqual([{ kind: 'abstain', reason: 'task request' }]);
+    expect((await call('abstain_campaign', { campaignId: w.campaignId, reason: 'unknown_answer' })).isError).toBe(true); // recorded once
+    const late = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    expect(late.isError).toBe(true); // first decision wins, locally too
+    expect(await w.deps.db.query(`select 1 from envelopes where campaign_id = $1`, [w.campaignId])).toEqual([]);
+    await w.srv.close();
+  });
+
+  it('abstain_campaign refuses a campaign this agent already answered', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
+    expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } })).json.submitted).toBe(true);
+    expect((await call('abstain_campaign', { campaignId: w.campaignId, reason: 'credential_ask' })).isError).toBe(true);
     await w.srv.close();
   });
 

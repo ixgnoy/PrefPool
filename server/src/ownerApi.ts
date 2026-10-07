@@ -26,14 +26,17 @@ const REFUND_MARGIN_MS = 60_000;
 const REFUNDABLE = ['FUNDED', 'ACTIVE', 'AGGREGATING', 'INSUFFICIENT_COHORT', 'SETTLEMENT_READY', 'SETTLEMENT_SUBMITTED', 'SETTLEMENT_FAILED'];
 const DAY_MS = 86_400_000;
 
-type AbstainBucket = 'blocked_category' | 'category_not_allowed' | 'reward_below_minimum' | 'daily_limit' | 'no_matching_profile' | 'unverified' | 'uncalibrated' | 'other';
-/** Buckets the content-free reason strings evaluatePolicy produces (shared/src/policy.ts). */
+type AbstainBucket = 'blocked_category' | 'category_not_allowed' | 'reward_below_minimum' | 'daily_limit' | 'no_matching_profile' | 'unverified' | 'uncalibrated'
+  | 'task_request' | 'credential_ask' | 'unknown_answer' | 'other';
+/** Buckets the content-free reason strings evaluatePolicy produces (shared/src/policy.ts) and abstain_campaign's fixed reasons (plugin). */
 const bucket = (reason: string | null): AbstainBucket =>
   reason?.startsWith('blocked category') ? 'blocked_category'
     : reason?.startsWith('category not allowed') ? 'category_not_allowed'
       : reason?.startsWith('reward') ? 'reward_below_minimum'
         : reason?.startsWith('daily limit') ? 'daily_limit' : reason?.startsWith('no matching profile') ? 'no_matching_profile'
-          : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated' : 'other';
+          : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated'
+            : reason === 'task request' ? 'task_request' : reason === 'asks for secrets' ? 'credential_ask'
+              : reason === 'does not know the answer' ? 'unknown_answer' : 'other';
 
 interface AgentRow {
   id: string; kind: string; address: string; policy: unknown; paused: boolean; last_seen_at: Date | string | null;
@@ -92,7 +95,8 @@ export function ownerRoutes(deps: Deps): Router {
     const now = deps.now();
     const today = Math.floor(now / DAY_MS) * DAY_MS;
     const byDay = new Map<number, bigint>();
-    const abstainReasons: Record<AbstainBucket, number> = { blocked_category: 0, category_not_allowed: 0, reward_below_minimum: 0, daily_limit: 0, no_matching_profile: 0, unverified: 0, uncalibrated: 0, other: 0 };
+    const abstainReasons: Record<AbstainBucket, number> = { blocked_category: 0, category_not_allowed: 0, reward_below_minimum: 0, daily_limit: 0, no_matching_profile: 0, unverified: 0, uncalibrated: 0,
+      task_request: 0, credential_ask: 0, unknown_answer: 0, other: 0 };
     let earned = 0n, pending = 0n, todayCount = 0;
     const cats = new Map<string, { category: string; seen: number; answered: number; earned: bigint }>();
     const items = rows.map((d) => {

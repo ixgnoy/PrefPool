@@ -70,7 +70,8 @@ export const registerAgent = (token: string, kind: 'live' | 'plugin', policy?: O
 export const updateMyAgent = (token: string, patch: { policy?: OwnerPolicy; paused?: boolean }) =>
   api<{ ok: true }>('/agents/mine', { method: 'PUT', body: JSON.stringify(patch), token });
 
-export type AbstainBucket = 'blocked_category' | 'category_not_allowed' | 'reward_below_minimum' | 'daily_limit' | 'no_matching_profile' | 'unverified' | 'uncalibrated' | 'other';
+export type AbstainBucket = 'blocked_category' | 'category_not_allowed' | 'reward_below_minimum' | 'daily_limit' | 'no_matching_profile' | 'unverified' | 'uncalibrated'
+  | 'task_request' | 'credential_ask' | 'unknown_answer' | 'other';
 export interface ActivityItem {
   campaignId: string; title: string; category: string; decidedAt: number; kind: 'answer' | 'abstain'; reason: string | null;
   rewardLamports: string; settlementTx: string | null; outcome: 'abstained' | 'pending' | 'paid' | 'not_paid';

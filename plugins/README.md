@@ -51,6 +51,7 @@ Where that file lives: Cursor `~/.cursor/mcp.json`; Claude Desktop `claude_deskt
 | Respondent | `list_campaigns` | Active campaigns (marked as untrusted third-party text) |
 | Respondent | `evaluate_campaign` | Policy check in code; abstains with a reason if blocked |
 | Respondent | `submit_answer` | Re-checks policy, validates answers, encrypts locally, submits once |
+| Respondent | `abstain_campaign` | Declines with a fixed reason (task request, asks for secrets, identifying, does not know); final |
 | Respondent | `calibration_pending` / `calibration_submit` | Answers a calibration round about the owner |
 | Researcher | `draft_campaign` | Local screening + funding link (a human approves the SOL budget in Phantom/Solflare/Backpack); or, with `createWithAgentWallet`, creates the campaign as the agent wallet |
 | Researcher | `fund_campaign` | Agent-created campaigns only, budget <= `MAX_BUDGET_SOL`: the server builds the escrow `fund` tx, the plugin checks it (only this campaign's fund, expected budget, agent pays) and signs it locally, the server broadcasts it |

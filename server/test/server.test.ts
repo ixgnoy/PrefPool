@@ -103,6 +103,22 @@ describe('campaigns and funding', () => {
     const res = await request(app).post('/api/campaigns').set({ Authorization: `Bearer ${s}` }).send({ ...demoSpec(clock.now + 600_000), maxResponses: 30 }).expect(422);
     expect(res.body.reasons).toEqual(['maxResponses must be 1..20']);
   });
+  it('throttles a buyer after 10 rejected drafts in 24 hours (by the server clock), per buyer', async () => {
+    const env = await makeDeps();
+    const buyer = await wallet();
+    const auth = { Authorization: `Bearer ${await login(env.app, buyer)}` };
+    const bad = { ...demoSpec(env.clock.now + 600_000), category: 'health' };
+    for (let i = 0; i < 10; i++) await request(env.app).post('/api/campaigns').set(auth).send(bad).expect(422);
+    const blocked = await request(env.app).post('/api/campaigns').set(auth).send(demoSpec(env.clock.now + 600_000)).expect(429);
+    expect(blocked.body.code).toBe('TOO_MANY_REJECTED');
+    // Another buyer is not affected.
+    const other = { Authorization: `Bearer ${await login(env.app, await wallet())}` };
+    await request(env.app).post('/api/campaigns').set(other).send(demoSpec(env.clock.now + 600_000)).expect(201);
+    // A day later the window has passed.
+    env.clock.now += 86_400_001;
+    const again = { Authorization: `Bearer ${await login(env.app, buyer)}` }; // the old session expired too
+    await request(env.app).post('/api/campaigns').set(again).send(demoSpec(env.clock.now + 600_000)).expect(201);
+  });
   it('funds, confirms the escrow on chain, and activates', async () => {
     const { app, id, deps, fundTxHash, chainState } = await activeCampaign();
     const view = await request(app).get(`/api/campaigns/${id}`).expect(200);
