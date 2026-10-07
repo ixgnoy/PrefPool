@@ -75,17 +75,17 @@ describe('envelope', () => {
     const env = sealEnvelope(pk, cid, addr, { q1: 1 }, { sources: {}, client });
     expect(openSealed(bytesToHex(sk), env).meta).toEqual({ sources: {}, client });
   });
-  it('a full v2 envelope (5 questions, model id) stays under 2.4 KB so a page of 10 fits 25 KB', () => {
+  it('a full v2 envelope (5 questions, longest model id) stays under 2.4 KB so a page of 10 fits 25 KB', () => {
     const long = 'Cm1NmUPngoFke9pc8zXsK2qebBEfPb76bS3gHfjMS2hN';
     const sources = { q1: 'owner_told', q2: 'owner_told', q3: 'owner_told', q4: 'owner_told', q5: 'owner_told' } as const;
     const env = sealEnvelope(pk, cid, long, { q1: 2, q2: 5, q3: 1, q4: 0, q5: 3 },
-      { sources, client: { name: 'agent-survey-mcp', version: '10.20.30', modelId: 'claude-opus-5-5-20261001-extended' } });
+      { sources, client: { name: 'agent-survey-mcp', version: '10.20.30', modelId: 'm'.repeat(64) } }); // worst case: the longest model id cleanMeta keeps
     expect(env.ct.length).toBeLessThanOrEqual(2000);
     expect(JSON.stringify({ ...env, receivedAtMs: Date.now() }).length).toBeLessThan(2400);
   });
 
   it('isClientString accepts what cleanMeta keeps and rejects the rest', () => {
     for (const ok of ['claude-opus-5-5', 'llama-3-8b', 'org/model:v1+x', 'a b@c.d']) expect(isClientString(ok)).toBe(true);
-    for (const bad of ['', 'x'.repeat(65), 'bad<model>', 'tab	here', 7, undefined]) expect(isClientString(bad)).toBe(false);
+    for (const bad of ['', 'x'.repeat(65), 'bad<model>', 'tab\there', 7, undefined]) expect(isClientString(bad)).toBe(false);
   });
 });

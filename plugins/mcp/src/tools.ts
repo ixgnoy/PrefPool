@@ -13,6 +13,11 @@ import { fundTxProblem, type AgentWallet } from './wallet.js';
 /** campaign_escrow on devnet; the server's /api/config/public is authoritative, this is the fallback. */
 /** Sealed with each answer as client.version; also the MCP server version. */
 export const PLUGIN_VERSION = '0.2.0';
+/** Trimmed model id if it passes the same check CRE's cleanMeta applies; otherwise undefined (omit it, keep the rest of the meta). */
+export function modelIdOrUndefined(raw: string | undefined): string | undefined {
+  const t = raw?.trim();
+  return t && isClientString(t) ? t : undefined;
+}
 export const DEFAULT_PROGRAM_ID = 'Cm1NmUPngoFke9pc8zXsK2qebBEfPb76bS3gHfjMS2hN';
 const sol = (lamports: bigint | string | number) => Number(BigInt(lamports)) / LAMPORTS_PER_SOL;
 const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
@@ -65,6 +70,8 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   const f = opts.fetchFn ?? fetch;
   const store = localStore(opts.dataDir, opts.today ?? (() => new Date().toISOString().slice(0, 10)));
   const server = new McpServer({ name: 'agent-survey', version: PLUGIN_VERSION });
+  /** opts.modelId, trimmed, or undefined if malformed: a bad model id would make CRE drop the whole sealed meta. Reusable for headers. */
+  const validModelId = modelIdOrUndefined(opts.modelId);
   const agentHeaders = () => ({ Authorization: `Bearer ${opts.agentToken}`, 'Content-Type': 'application/json' });
   const api = async (path: string, init: RequestInit = {}) => {
     const res = await f(`${opts.serverUrl}/api${path}`, init);
@@ -241,11 +248,9 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     if (!answersValid(c.questions, answers) || !answersValid(c.questions, canonical)) {
       return fail('Answers must cover every question with a listed option (0-based position, in the order shown to you) or 1..5.');
     }
-    // A malformed model id would make CRE drop the whole meta, so it is left out instead.
-    const modelId = isClientString(opts.modelId) ? opts.modelId : undefined;
     const meta: EnvelopeMeta = {
       sources: deriveSources(c, sources, s.facts),
-      client: { name: 'agent-survey-mcp', version: PLUGIN_VERSION, ...(modelId ? { modelId } : {}) },
+      client: { name: 'agent-survey-mcp', version: PLUGIN_VERSION, ...(validModelId ? { modelId: validModelId } : {}) },
     };
     const envelope = sealEnvelope(c.envelopePublicKey, campaignId, meRow.address, canonical, meta);
     await api(`/agents/campaigns/${campaignId}/envelope`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(envelope) });

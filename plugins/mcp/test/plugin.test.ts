@@ -9,7 +9,7 @@ import request from 'supertest';
 import { openEnvelope, openSealed, optionOrder, orderKey, transcriptKeyFromSignature, type Answers, type CampaignDatumFields, type Envelope } from '@as/shared';
 import { tick } from '../../../server/src/lifecycle.js';
 import { demoSpec, escrowFor, keys, listen, login, makeDeps, wallet } from '../../../server/test/helpers.js';
-import { createAgentSurveyServer } from '../src/tools.js';
+import { createAgentSurveyServer, modelIdOrUndefined, PLUGIN_VERSION } from '../src/tools.js';
 import { agentWallet } from '../src/wallet.js';
 
 /** Removes the per-call untrusted-text boundaries (G2) so assertions can compare raw campaign text. */
@@ -293,6 +293,21 @@ describe('agent-survey MCP plugin', () => {
     expect(meta!.sources).toEqual(expected);
     expect(meta!.client).toEqual({ name: 'agent-survey-mcp', version: '0.2.0', modelId: 'test-7b' });
     await w.srv.close();
+  });
+
+  it('PLUGIN_VERSION matches package.json and plugin.json', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const manifest = JSON.parse(readFileSync(new URL('../../claude-code/.claude-plugin/plugin.json', import.meta.url), 'utf8'));
+    expect(PLUGIN_VERSION).toBe(pkg.version);
+    expect(PLUGIN_VERSION).toBe(manifest.version);
+  });
+
+  it('model ids are trimmed and validated before use', () => {
+    expect(modelIdOrUndefined('  claude-opus-5-5 \t')).toBe('claude-opus-5-5');
+    expect(modelIdOrUndefined('   ')).toBeUndefined();
+    expect(modelIdOrUndefined(undefined)).toBeUndefined();
+    expect(modelIdOrUndefined('bad<model>id')).toBeUndefined();
+    expect(modelIdOrUndefined('m'.repeat(65))).toBeUndefined();
   });
 
   it('drops a malformed model id but keeps the rest of the meta', async () => {
