@@ -31,7 +31,7 @@ describe('calibration bank (seeded by migration)', () => {
 import request from 'supertest';
 import { CRE_TOKEN, demoSpec, keys, login, makeDeps, wallet } from './helpers.js';
 import { majorityAnswer, sealEnvelope, type CalibrationQuestion } from '@as/shared';
-import { calibrationTick } from '../src/calibration.js';
+import { calibrationTick, createRound } from '../src/calibration.js';
 import { ensureSyntheticAgents } from '../src/synthetic.js';
 
 type Q = { id: string; type: 'single_choice' | 'likert_5'; options?: string[] };
@@ -154,6 +154,19 @@ describe('calibration rounds', () => {
     await calibrationTick(t.deps);
     expect((await pending(t)).round).not.toBeNull();
     expect((await request(t.app).post('/api/agents/mine/calibration').set(t.s).expect(409)).body.code).toBe('ROUND_OPEN');
+  });
+
+  it('prefers contested questions: a question everyone answers alike is left out', async () => {
+    const t = await setup();
+    const roundIds = async () => {
+      await t.deps.db.query(`update calibration_rounds set state = 'EXPIRED'`); // close the onboarding round
+      const id = await createRound(t.deps, t.agentId, () => 0.5); // no randomness: ties fall back to id order
+      return (await t.deps.db.query<{ question_ids: string[] }>(`select question_ids from calibration_rounds where id = $1`, [id]))[0]!.question_ids;
+    };
+    expect(await roundIds()).toContain('cb-001'); // prior top share 0.35: contested
+    // 50 owners picked option 0 of cb-001: top share 1.0, no longer informative
+    await t.deps.db.query(`insert into calibration_counts (question_id, option, n) values ('cb-001', 0, 50)`);
+    expect(await roundIds()).not.toContain('cb-001');
   });
 
   it('gives synthetic agents a simulated pass', async () => {

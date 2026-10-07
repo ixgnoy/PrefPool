@@ -24,6 +24,15 @@ export function majorityAnswer(q: CalibrationQuestion, counts: number[] | undefi
   return dist.reduce((best, p, i) => (p > dist[best]! ? i : best), 0);
 }
 
+/** A question is contested when no answer holds more than this share: only those separate an owner from the majority. */
+export const CONTESTED_MAX_SHARE = 0.5;
+/** Share of the most popular answer: counts once there are enough, otherwise the prior. */
+export function majorityShare(q: Pick<CalibrationQuestion, 'type' | 'prior'>, counts: number[] | undefined): number {
+  const total = counts?.reduce((a, b) => a + b, 0) ?? 0;
+  const dist = counts && total >= CALIBRATION_MIN_COUNTS ? counts.map((n) => n / total) : q.prior;
+  return Math.max(...dist);
+}
+
 const match = (q: CalibrationQuestion, x: AgentAnswer, o: number) =>
   x === 'unknown' ? 0 : q.type === 'likert_5' ? 1 - Math.abs(x - o) / 4 : x === o ? 1 : 0;
 

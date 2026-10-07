@@ -3,7 +3,7 @@
 // score. Agent answers are nulled after scoring; owner answers only ever bump per-option counts (the "typical person").
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { CALIBRATION_ROUND_SIZE, majorityAnswer, scoreRound, type AgentAnswer, type CalibrationQuestion } from '@as/shared';
+import { CALIBRATION_ROUND_SIZE, CONTESTED_MAX_SHARE, majorityAnswer, majorityShare, scoreRound, type AgentAnswer, type CalibrationQuestion } from '@as/shared';
 import { z } from 'zod';
 import { requireAgent, requireSession, type AuthedRequest } from './auth.js';
 import { isUniqueViolation } from './db.js';
@@ -35,12 +35,23 @@ async function questions(deps: Deps, ids: string[]): Promise<CalibrationQuestion
 /** What the agent and the owner see: never the prior, never anyone's answers. */
 const publicQ = (q: CalibrationQuestion) => ({ id: q.id, text: q.text, type: q.type, ...(q.options ? { options: q.options } : {}) });
 
-/** 15 questions this agent hasn't seen, at most 4 per category; falls back to seen ones once the bank runs out. */
+/** 15 questions this agent hasn't seen, contested ones first, at most 4 per category; falls back to seen ones once the bank runs out. */
 export async function createRound(deps: Deps, agentId: string, rng: Rng = Math.random): Promise<string> {
-  const pool = await deps.db.query<{ id: string; category: string; seen: boolean }>(
-    `select q.id, q.category, s.agent_id is not null as seen from calibration_questions q
+  const pool = await deps.db.query<{ id: string; category: string; type: 'single_choice' | 'likert_5'; prior: number[]; seen: boolean }>(
+    `select q.id, q.category, q.type, q.prior, s.agent_id is not null as seen from calibration_questions q
        left join calibration_seen s on s.question_id = q.id and s.agent_id = $1 where q.active order by q.id`, [agentId]);
-  const shuffled = pool.map((q) => ({ q, r: rng() })).sort((a, b) => Number(a.q.seen) - Number(b.q.seen) || a.r - b.r).map((x) => x.q);
+  const counts = await deps.db.query<{ question_id: string; option: number; n: number | string }>(
+    `select question_id, option, n from calibration_counts where question_id = any($1)`, [pool.map((q) => q.id)]);
+  const priorLen = new Map(pool.map((q) => [q.id, q.prior.length]));
+  const countsById = new Map<string, number[]>();
+  for (const c of counts) {
+    const arr = countsById.get(c.question_id) ?? Array.from({ length: priorLen.get(c.question_id)! }, () => 0);
+    if (c.option >= 0 && c.option < arr.length) arr[c.option] = Number(c.n);
+    countsById.set(c.question_id, arr);
+  }
+  // Lift only separates an owner from "a typical person" where people disagree: unseen first, contested next, then random.
+  const shuffled = pool.map((q) => ({ q, contested: majorityShare(q, countsById.get(q.id)) <= CONTESTED_MAX_SHARE, r: rng() }))
+    .sort((a, b) => Number(a.q.seen) - Number(b.q.seen) || Number(b.contested) - Number(a.contested) || a.r - b.r).map((x) => x.q);
   const picked: string[] = [];
   const perCat = new Map<string, number>();
   for (const q of shuffled) {

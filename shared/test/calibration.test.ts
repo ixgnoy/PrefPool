@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CALIBRATION_MIN_AGREEMENT, CALIBRATION_MIN_LIFT, UNCALIBRATED_REASON, calibrationGate, majorityAnswer, scoreRound, type CalibrationQuestion } from '../src/calibration.js';
+import { CALIBRATION_MIN_AGREEMENT, CALIBRATION_MIN_LIFT, UNCALIBRATED_REASON, calibrationGate, majorityAnswer, majorityShare, scoreRound, type CalibrationQuestion } from '../src/calibration.js';
 
 const sc = (id: string, prior = [0.6, 0.3, 0.1]): CalibrationQuestion => ({ id, text: id, type: 'single_choice', options: ['a', 'b', 'c'], category: 'food', prior });
 const lk = (id: string): CalibrationQuestion => ({ id, text: id, type: 'likert_5', category: 'tech', prior: [0.1, 0.1, 0.2, 0.3, 0.3] });
@@ -51,5 +51,14 @@ describe('calibrationGate', () => {
     expect(calibrationGate({ calibratedAgentsOnly: true }, null, 1)).toEqual({ ok: false, reason: UNCALIBRATED_REASON });
     expect(calibrationGate({ calibratedAgentsOnly: true }, 100, 200)).toEqual({ ok: false, reason: UNCALIBRATED_REASON });
     expect(calibrationGate({ calibratedAgentsOnly: true }, 300, 200)).toEqual({ ok: true });
+  });
+});
+
+describe('majorityShare', () => {
+  it('uses counts once there are enough, else the prior', () => {
+    const q = { type: 'single_choice' as const, prior: [0.35, 0.35, 0.3] };
+    expect(majorityShare(q, undefined)).toBe(0.35);
+    expect(majorityShare(q, [27, 2, 1])).toBe(0.9);
+    expect(majorityShare(q, [9, 0, 0])).toBe(0.35); // 9 < CALIBRATION_MIN_COUNTS
   });
 });
