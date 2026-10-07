@@ -20,12 +20,18 @@ const norm = (s: string) => s.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p
 // Likert anchors: "(1 = never, 5 = very often)", "1 - never ... 5 - always", "1: never, 5: always",
 // "from 1 (never) to 5 (always)", "1 Very dissatisfied - 5 Very satisfied", "(1 = 0 times, 5 = 10+ times)".
 // Labels start with a letter (any script) or a digit. "1-5 scale" and "from 1 to 5" are not labels.
-const ANCHOR_SEP = String.raw`\s*(?:[=:\-\u2013]\s*|\(\s*)|\s+`;
+// A separator (= : - en dash, or "(") is required; the space-only form ("1 Very dissatisfied - 5 Very satisfied")
+// is accepted separately and only with a capitalized label, so "in the last 1 month ... over 5 minutes" is not a scale.
+// Case-sensitive on purpose (no `i`); not written with (?-i:) groups because shared also runs in browsers.
+const ANCHOR_SEP = String.raw`\s*(?:[=:\-\u2013]\s*|\(\s*)`;
 const ANCHOR = String.raw`\b1(?:${ANCHOR_SEP})(?!5\b|to\b)(?:\p{L}|\d)[^\n]*?\b5(?:${ANCHOR_SEP})(?:\p{L}|\d)[^,;.?)\n]*\)?`;
-const LIKERT_ANCHORS = new RegExp(ANCHOR, 'iu');
-const LIKERT_ANCHOR_SPAN = new RegExp(ANCHOR, 'giu');
+const SPACE_ANCHOR = String.raw`\b1\s+\p{Lu}[^\n]*?\b5\s+\p{Lu}[^,;.?)\n]*\)?`;
+const LIKERT_ANCHORS = [new RegExp(ANCHOR, 'iu'), new RegExp(SPACE_ANCHOR, 'u')];
+const LIKERT_ANCHOR_SPANS = [new RegExp(ANCHOR, 'giu'), new RegExp(SPACE_ANCHOR, 'gu')];
+const hasLikertAnchors = (s: string) => LIKERT_ANCHORS.some((r) => r.test(s));
+const stripLikertAnchors = (s: string) => LIKERT_ANCHOR_SPANS.reduce((t, r) => t.replace(r, ' '), s);
 /** Likert anchor labels and parentheticals are labels, not the question's logic. Anchors only exist on likert questions. */
-const stemOnly = (q: Question) => (q.type === 'likert_5' ? q.text.replace(LIKERT_ANCHOR_SPAN, ' ') : q.text).replace(/\([^)]*\)/g, ' ');
+const stemOnly = (q: Question) => (q.type === 'likert_5' ? stripLikertAnchors(q.text) : q.text).replace(/\([^)]*\)/g, ' ');
 
 // Small models answer "which do you NOT use" as if the NOT were absent (inverse scaling, NeQA).
 const HARD_NEGATION = [
@@ -73,7 +79,7 @@ export function lintQuestion(q: Question): LintIssue[] {
   if (LEADING.test(stem)) issue('leading', 'warn', 'leading wording; models agree with the framing');
 
   if (q.type === 'likert_5') {
-    if (!LIKERT_ANCHORS.test(q.text)) issue('likert_anchors', 'block', 'a 1-5 question must label both ends, e.g. "(1 = never, 5 = very often)"');
+    if (!hasLikertAnchors(q.text)) issue('likert_anchors', 'block', 'a 1-5 question must label both ends, e.g. "(1 = never, 5 = very often)"');
     return out;
   }
   // "Neither" after exactly two options is the natural escape ("Card / Crypto / Neither"); with more it is a reference.

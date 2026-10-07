@@ -147,6 +147,20 @@ describe('lint re-review regressions (contracted negations, broader anchors)', (
   });
 });
 
+describe('lint: space-only likert anchors need a capitalized label', () => {
+  const lk = (text: string) => rules({ id: 'q', type: 'likert_5', text }, 'block');
+  it('does not read ordinary numbers in a sentence as anchors', () => {
+    expect(lk('In the last 1 month, how often did checkout take over 5 minutes?')).toContain('likert_anchors');
+  });
+  it('does not strip a negation that sits between a stray 1 and 5', () => {
+    expect(lk('In 1 week, how often do you NOT pay within 5 days? (1 = never, 5 = always)')).toContain('negated_stem');
+  });
+  it('still accepts a space-only anchor with capitalized labels', () => {
+    expect(lk('How satisfied are you with checkout? 1 Very dissatisfied - 5 Very satisfied')).toEqual([]);
+    expect(lk('How satisfied are you with checkout? 1 very dissatisfied - 5 very satisfied')).toContain('likert_anchors');
+  });
+});
+
 describe('lintCampaign', () => {
   it('prefixes every message with the question id', () => {
     const issues = lintCampaign({ category: 'payments', questions: [sc('Which?', ['Card', 'Both'], 'q4')] });
