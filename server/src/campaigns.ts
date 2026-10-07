@@ -125,21 +125,23 @@ export function campaignRoutes(deps: Deps): Router {
 
 /** Public campaign view: states, counts, reasons, tx links. Never answers or envelopes. */
 export async function campaignView(deps: Deps, id: string) {
-  const c = await getCampaign(deps, id);
-  const decisions = await deps.db.query<{ kind: string; reason: string | null; n: number | string }>(
-    `select kind, reason, count(*) as n from agent_decisions where campaign_id = $1 group by kind, reason`, [id]);
-  const [{ n: envelopeCount } = { n: 0 }] = await deps.db.query<{ n: number | string }>(
-    `select count(*) as n from envelopes where campaign_id = $1`, [id]);
-  const [report] = await deps.db.query<{
-    settlement: { acceptedCount: number; rejectionCounts: unknown; reportHash: string }; evm_tx: string | null;
-    research: { verifiedHumans?: number; simulatedHumans?: number } | null;
-  }>(`select settlement, research, evm_tx from reports where campaign_id = $1`, [id]);
-  const [job] = await deps.db.query<{ status: string; log: string | null }>(`select status, log from cre_jobs where campaign_id = $1`, [id]);
-  // Aquarium tiles: one per decision, under a per-campaign pseudonym (not linkable across campaigns), never an answer.
-  const tiles = await deps.db.query<{ agent_id: string; kind: 'answer' | 'abstain'; reason: string | null; agent_kind: string; personhood_kind: 'world' | 'simulated' | null }>(
-    `select d.agent_id, d.kind, d.reason, a.kind as agent_kind, a.personhood_kind from agent_decisions d join agents a on a.id = d.agent_id
-      where d.campaign_id = $1 order by d.created_at, d.agent_id`, [id]);
-  const [{ n: networkSize } = { n: 0 }] = await deps.db.query<{ n: number | string }>(`select count(*) as n from agents`);
+  // Independent queries in parallel: Supabase is a ~400 ms round-trip away, so sequential reads made this view take ~5 s.
+  const [c, decisions, [{ n: envelopeCount } = { n: 0 }], [report], [job], tiles, [{ n: networkSize } = { n: 0 }]] = await Promise.all([
+    getCampaign(deps, id),
+    deps.db.query<{ kind: string; reason: string | null; n: number | string }>(
+      `select kind, reason, count(*) as n from agent_decisions where campaign_id = $1 group by kind, reason`, [id]),
+    deps.db.query<{ n: number | string }>(`select count(*) as n from envelopes where campaign_id = $1`, [id]),
+    deps.db.query<{
+      settlement: { acceptedCount: number; rejectionCounts: unknown; reportHash: string };
+      research: { verifiedHumans?: number; simulatedHumans?: number } | null;
+    }>(`select settlement, research from reports where campaign_id = $1`, [id]),
+    deps.db.query<{ status: string; log: string | null }>(`select status, log from cre_jobs where campaign_id = $1`, [id]),
+    // Aquarium tiles: one per decision, under a per-campaign pseudonym (not linkable across campaigns), never an answer.
+    deps.db.query<{ agent_id: string; kind: 'answer' | 'abstain'; reason: string | null; agent_kind: string; personhood_kind: 'world' | 'simulated' | null }>(
+      `select d.agent_id, d.kind, d.reason, a.kind as agent_kind, a.personhood_kind from agent_decisions d join agents a on a.id = d.agent_id
+        where d.campaign_id = $1 order by d.created_at, d.agent_id`, [id]),
+    deps.db.query<{ n: number | string }>(`select count(*) as n from agents`),
+  ]);
   return {
     campaignId: c.id, state: c.state, title: c.spec.title, category: c.spec.category, questions: c.spec.questions,
     rewardLamports: c.spec.rewardLamports, maxResponses: c.spec.maxResponses, minCohort: c.spec.minCohort,
@@ -149,7 +151,7 @@ export async function campaignView(deps: Deps, id: string) {
     envelopes: Number(envelopeCount),
     fundTxHash: c.fund_tx_hash, escrowTxRef: c.escrow_tx_ref, settlementTxHash: c.settlement_tx_hash, lastError: c.last_error,
     report: report ? { acceptedCount: report.settlement.acceptedCount, rejectionCounts: report.settlement.rejectionCounts,
-      reportHash: report.settlement.reportHash, evmTx: report.evm_tx } : null,
+      reportHash: report.settlement.reportHash } : null,
     cre: job ? { status: job.status, log: (job.log ?? '').slice(-20_000) } : null,
     agents: tiles.map((t) => ({ tag: `agt_${createHash('sha256').update(`${id}:${t.agent_id}`).digest('hex').slice(0, 6)}`, // 24 bits: collisions in a 30-agent cohort ~1 in 30k
       kind: t.kind, reason: t.reason, live: t.agent_kind === 'live' || t.agent_kind === 'plugin', personhood: t.personhood_kind })),

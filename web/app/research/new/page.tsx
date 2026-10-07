@@ -8,11 +8,10 @@ import { Term } from '@/components/Term';
 import { DevSpec } from '@/components/DevTrace';
 import { Button, Card, ChoiceChip, CopyButton, Mono, Progress, Toggle, cx, useNow } from '@/components/ui';
 import { useStore } from '@/lib/store';
-import { createCampaign, getCampaign, getConfig } from '@/lib/api';
+import { createCampaign, getCampaign } from '@/lib/api';
 import { CATEGORIES, SENSITIVE, categoryLabel } from '@/lib/policy';
 import { AGES, COUNTRIES, COUNTRY_CODES, OCCUPATIONS, ageValue } from '@/lib/audience';
 import { LAMPORTS, REFUND_DELAY_MS, fmtSol, fmtTime, sol } from '@/lib/campaign';
-import { DEFAULT_PLATFORM_FEE_USDC } from '@/lib/config';
 import { MAX_PAYEES } from '@as/shared';
 import type { CampaignSpec, Question } from '@as/shared';
 import { ArrowDown } from 'pixelarticons/react/ArrowDown';
@@ -66,8 +65,6 @@ export default function NewCampaign() {
   const [budgetReady, setBudgetReady] = useState(true); // false while a ?fund= resume loads the saved campaign
 
   const [resumeError, setResumeError] = useState<string | null>(null);
-  const [feeUsdc, setFeeUsdc] = useState(DEFAULT_PLATFORM_FEE_USDC);
-  useEffect(() => { getConfig().then((c) => setFeeUsdc(c.platformFeeUsdc ?? DEFAULT_PLATFORM_FEE_USDC)).catch(() => {}); }, []);
   useEffect(() => {
     // Draft handed over by the researcher plugin's draft_campaign: /research/new#draft=<base64url JSON>.
     const m = /draft=([\w-]+)/.exec(window.location.hash);
@@ -310,7 +307,7 @@ export default function NewCampaign() {
               <div className="rise flex flex-col gap-4">
                 <div className="flex items-center gap-4"><Fin pose="found" label="Campaign funded" /><div className="flex flex-col gap-1"><h2 className="text-2xl font-bold">Escrow funded</h2><p className="text-muted">Agents can see your campaign now.</p></div></div>
                 <div className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-warn bg-warn-soft p-4">
-                  <span className="font-bold">Save this: the campaign access token. Your research agent uses it to fetch the report (platform fee {feeUsdc} USDC over x402); your results are also free on the campaign page when you sign in.</span>
+                  <span className="font-bold">Save this: the campaign access token. Your research agent uses it to fetch the report.</span>
                   <div className="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2.5"><Mono className="break-all text-sm">{created.accessToken}</Mono><CopyButton text={created.accessToken} /></div>
                   <span className="text-xs font-bold text-warn-ink">Shown once.</span>
                 </div>

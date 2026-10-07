@@ -22,7 +22,6 @@ const deps: Deps = {
     runnerToken: env.CRE_RUNNER_TOKEN, cluster: 'devnet', rpcUrl: env.SOLANA_RPC_URL,
     platformFeeUsdc: env.PLATFORM_FEE_USDC, platformFeePayTo: env.PLATFORM_FEE_PAY_TO,
     publicBaseUrl: env.PUBLIC_BASE_URL.replace(/\/+$/, ''),
-    reportRegistryAddress: env.REPORT_REGISTRY_ADDRESS,
     personhood: env.WORLD_APP_ID && env.WORLD_RP_ID && env.WORLD_RP_SIGNING_KEY
       ? { appId: env.WORLD_APP_ID, rpId: env.WORLD_RP_ID, signingKey: env.WORLD_RP_SIGNING_KEY, environment: env.WORLD_ENV }
       : undefined },

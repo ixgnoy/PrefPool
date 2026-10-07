@@ -38,7 +38,7 @@ export function creRoutes(deps: Deps): Router {
 
   /** Idempotent: every DON node posts; the same reportHash returns the same ack. */
   r.post('/cre/campaigns/:id/reports', cre, async (req, res) => {
-    const body = z.object({ settlement: z.any(), research: z.any().nullable(), evmTx: z.string().nullable().optional() }).parse(req.body);
+    const body = z.object({ settlement: z.any(), research: z.any().nullable() }).parse(req.body);
     const settlement = body.settlement as SettlementReport;
     const research = body.research as ResearchReport | null;
     const c = await getCampaign(deps, String(req.params.id));
@@ -52,8 +52,8 @@ export function creRoutes(deps: Deps): Router {
     if (settlement.campaignId !== c.id) errs.push('campaignId mismatch');
     if (settlement.escrowTxRef !== c.escrow_tx_ref) errs.push('escrowTxRef mismatch');
     if (errs.length) throw new HttpError(422, 'BAD_REPORT', errs.join('; '));
-    await deps.db.query(`insert into reports (campaign_id, settlement, research, report_hash, evm_tx) values ($1, $2::jsonb, $3::jsonb, $4, $5)`,
-      [c.id, JSON.stringify(settlement), research ? JSON.stringify(research) : null, settlement.reportHash, body.evmTx ?? null]);
+    await deps.db.query(`insert into reports (campaign_id, settlement, research, report_hash) values ($1, $2::jsonb, $3::jsonb, $4)`,
+      [c.id, JSON.stringify(settlement), research ? JSON.stringify(research) : null, settlement.reportHash]);
     await setState(deps, c.id, settlement.acceptedCount === 0 ? 'INSUFFICIENT_COHORT' : 'SETTLEMENT_READY');
     res.json({ ack: 'stored' });
   });

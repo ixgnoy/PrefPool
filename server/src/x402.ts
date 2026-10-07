@@ -43,17 +43,12 @@ function reportGate(deps: Deps) {
 /**
  * GET /api/campaigns/:id/report — the research report for PLATFORM_FEE_USDC paid over x402 (Solana devnet, `exact`
  * scheme, USDC to PLATFORM_FEE_PAY_TO; our facilitator pays the tx fee). If the handler fails (status >= 400) x402
- * cancels settlement. Without a pay-to wallet or facilitator the route answers 503.
+ * cancels settlement. Without a pay-to wallet or facilitator there is no fee: the access token alone gets the report.
  */
 export function mountReportRoute(app: Express, deps: Deps, opts: { facilitatorUrl?: string; facilitatorToken?: string; rpcUrl?: string }) {
   const payTo = deps.config.platformFeePayTo;
-  if (!payTo || !opts.facilitatorUrl) {
-    app.get(ROUTE, (_req, res) => {
-      res.status(503).json({ code: 'X402_UNCONFIGURED', error: 'the x402 report fee is not configured on this server (PLATFORM_FEE_PAY_TO, FACILITATOR_URL)' });
-    });
-    return;
-  }
   app.use(ROUTE, reportGate(deps));
+  if (!payTo || !opts.facilitatorUrl) return void app.get(ROUTE, sendReport(deps)); // ponytail: no fee configured = free with token
 
   const resourceServer = new x402ResourceServer(facilitatorClient(opts.facilitatorUrl, opts.facilitatorToken));
   // rpcUrl: embed a recent blockhash in the 402 so the payer skips a round-trip (best effort, ignored on RPC errors).
@@ -66,10 +61,12 @@ export function mountReportRoute(app: Express, deps: Deps, opts: { facilitatorUr
     },
   }, resourceServer));
 
-  app.get(ROUTE, async (req, res) => {
-    const c = await getCampaign(deps, String(req.params.id));
-    const [r] = await deps.db.query<{ research: unknown }>(`select research from reports where campaign_id = $1`, [c.id]);
-    if (!r?.research) throw new HttpError(409, 'NO_REPORT', 'no research report');
-    res.json({ ...(r.research as object), settlementTx: c.settlement_tx_hash });
-  });
+  app.get(ROUTE, sendReport(deps));
 }
+
+const sendReport = (deps: Deps) => async (req: Request, res: Response) => {
+  const c = await getCampaign(deps, String(req.params.id));
+  const [r] = await deps.db.query<{ research: unknown }>(`select research from reports where campaign_id = $1`, [c.id]);
+  if (!r?.research) throw new HttpError(409, 'NO_REPORT', 'no research report');
+  res.json({ ...(r.research as object), settlementTx: c.settlement_tx_hash });
+};

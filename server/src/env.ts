@@ -28,7 +28,6 @@ export const envSchema = z.object({
   WORLD_RP_ID: z.string().startsWith('rp_').optional(),
   WORLD_RP_SIGNING_KEY: z.string().regex(/^(0x)?[0-9a-fA-F]+$/).optional(),
   WORLD_ENV: z.enum(['staging', 'production']).default('staging'),
-  REPORT_REGISTRY_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(), // Base Sepolia ReportRegistry, shown in the dev view
 });
 export type Env = z.infer<typeof envSchema>;
 export const loadEnv = (): Env => envSchema.parse(process.env);

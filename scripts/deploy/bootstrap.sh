@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time production setup for the CI/CD pipeline (Task 8.14). Idempotent: safe to re-run.
 #
-# Creates/links the Railway project with two services (server, facilitator) and their public domains,
+# Creates/links the Railway project with the API server service (Singapore, root railway.json) and its public domain,
 # the Vercel project (Root Directory web), sets every runtime variable from the root .env, stores the
 # CI secrets and variables in GitHub, then runs the first deploy and the live smoke test.
 #
@@ -15,7 +15,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-PROJECT=${PROJECT_NAME:-cardanofish}
+PROJECT=${PROJECT_NAME:-prefpool}
 DRY=${DRY_RUN:-0}
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 die() { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
@@ -44,28 +44,18 @@ gh auth status >/dev/null 2>&1 || need "GitHub CLI is logged out: run 'gh auth l
 [ -f .env ] || die "root .env is missing (copy .env.example and fill it in)"
 
 envval() { # read KEY from .env without sourcing it (values may contain spaces or '!')
-  node -e 'const [k]=process.argv.slice(1);const l=require("fs").readFileSync(".env","utf8").split(/\r?\n/).find(x=>x.startsWith(k+"="));if(l){let v=l.slice(k.length+1);const i=v.search(/\s+#/);if(i>=0)v=v.slice(0,i);process.stdout.write(v.trim().replace(/^["\x27]|["\x27]$/g,""))}' "$1"
+  node -e 'const [k]=process.argv.slice(1);const l=require("fs").readFileSync(".env","utf8").split(/\r?\n/).filter(x=>x.startsWith(k+"=")).pop();if(l){let v=l.slice(k.length+1);const i=v.search(/\s+#/);if(i>=0)v=v.slice(0,i);process.stdout.write(v.trim().replace(/^["\x27]|["\x27]$/g,""))}' "$1"
 }
-REQUIRED=(SUPABASE_DB_URL RELAYER_SECRET_KEY PLATFORM_FEE_PAY_TO ENVELOPE_X25519_PK REPORT_ED25519_PK CRE_PLATFORM_TOKEN CRE_RUNNER_TOKEN SYNTHETIC_SECRET)
-OPTIONAL=(SOLANA_RPC_URL ESCROW_PROGRAM_ID PLATFORM_FEE_USDC REPORT_REGISTRY_ADDRESS WORLD_APP_ID WORLD_RP_ID WORLD_RP_SIGNING_KEY WORLD_ENV)
-declare -A V
-for k in "${REQUIRED[@]}"; do V[$k]=$(envval "$k"); [ -n "${V[$k]}" ] || die ".env has no value for $k"; done
-for k in "${OPTIONAL[@]}"; do V[$k]=$(envval "$k"); done
-
-FAC_TOKEN=$(envval FACILITATOR_TOKEN)
-if [ ${#FAC_TOKEN} -lt 32 ]; then
-  FAC_TOKEN=$(openssl rand -hex 32)
-  if [ "$DRY" = 1 ]; then echo "FACILITATOR_TOKEN missing or short: a real run generates one and saves it to .env"; else
-    # The token is hex, so it is safe inside sed and printf.
-    if grep -q '^FACILITATOR_TOKEN=' .env; then sed -i "s/^FACILITATOR_TOKEN=.*/FACILITATOR_TOKEN=$FAC_TOKEN/" .env
-    else printf '\nFACILITATOR_TOKEN=%s\n' "$FAC_TOKEN" >> .env; fi
-    echo "FACILITATOR_TOKEN was missing or short: generated one and saved it to .env"
-  fi
-fi
+REQUIRED=(SUPABASE_DB_URL RELAYER_SECRET_KEY ENVELOPE_X25519_PK REPORT_ED25519_PK CRE_PLATFORM_TOKEN CRE_RUNNER_TOKEN SYNTHETIC_SECRET)
+OPTIONAL=(SOLANA_RPC_URL ESCROW_PROGRAM_ID WORLD_APP_ID WORLD_RP_ID WORLD_RP_SIGNING_KEY WORLD_ENV)
+# bash 3.2 (macOS) has no associative arrays: each value lives in V_<KEY>; v KEY reads it back.
+v() { local n="V_$1"; printf '%s' "${!n}"; }
+for k in "${REQUIRED[@]}"; do printf -v "V_$k" '%s' "$(envval "$k")"; [ -n "$(v "$k")" ] || die ".env has no value for $k"; done
+for k in "${OPTIONAL[@]}"; do printf -v "V_$k" '%s' "$(envval "$k")"; done
 
 say "Checking the production database connection"
 # shellcheck disable=SC2016  # JavaScript template literal, not shell
-SUPABASE_DB_URL="${V[SUPABASE_DB_URL]}" node -e '
+SUPABASE_DB_URL="$(v SUPABASE_DB_URL)" node -e '
   import("postgres").then(async ({ default: postgres }) => {
     const sql = postgres(process.env.SUPABASE_DB_URL, { max: 1, connect_timeout: 15 });
     try { await sql`select 1`; console.log("database OK"); }
@@ -78,10 +68,7 @@ say "Railway project '$PROJECT'"
 if [ "$DRY" = 1 ] || ! railway status >/dev/null 2>&1; then run railway init --name "$PROJECT"; else echo "already linked: $(railway status 2>/dev/null | head -1)"; fi
 existing_services() { railway status --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log((JSON.parse(s).services?.edges||[]).map(e=>e.node.name).join(" "))}catch{console.log("")}})'; }
 have=" $(existing_services) "
-for s in server facilitator; do
-  if [[ "$have" == *" $s "* ]]; then echo "service $s exists"; continue; fi
-  run railway add --service "$s" >/dev/null
-done
+if [[ "$have" == *" server "* ]]; then echo "service server exists"; else run railway add --service server >/dev/null; fi
 
 if [ -z "${RAILWAY_TOKEN:-}" ] && [ "$DRY" != 1 ]; then
   die "The Railway project exists now. Create a project token (Railway → $PROJECT → Settings → Tokens, environment production), then re-run with RAILWAY_TOKEN=<token>."
@@ -96,9 +83,7 @@ railway_domain() { # service → https URL (creates the *.up.railway.app domain 
   echo "https://$d"
 }
 SERVER_URL=$(railway_domain server)
-FAC_URL=$(railway_domain facilitator)
-echo "server:      $SERVER_URL"
-echo "facilitator: $FAC_URL"
+echo "server: $SERVER_URL"
 
 # ---------- 2. Vercel project (Root Directory web) ----------
 say "Vercel project '$PROJECT'"
@@ -120,16 +105,10 @@ WEB_URL="https://$PROJECT.vercel.app"
 
 # ---------- 3. Railway variables ----------
 say "Railway variables"
-for k in "${REQUIRED[@]}"; do railway_set server "$k" "${V[$k]}"; done
-for k in "${OPTIONAL[@]}"; do [ -n "${V[$k]}" ] && railway_set server "$k" "${V[$k]}"; done
-railway_set server SERVICE_ROLE server
+# Only what the API server reads. The CRE secrets (SIM_*, CRE_SOLANA_PRIVATE_KEY) never leave the runner machine.
+for k in "${REQUIRED[@]}"; do railway_set server "$k" "$(v "$k")"; done
+for k in "${OPTIONAL[@]}"; do [ -z "$(v "$k")" ] || railway_set server "$k" "$(v "$k")"; done
 railway_set server PUBLIC_BASE_URL "$SERVER_URL"
-railway_set server FACILITATOR_URL "$FAC_URL"
-railway_set server FACILITATOR_TOKEN "$FAC_TOKEN"
-railway_set facilitator SERVICE_ROLE facilitator
-railway_set facilitator RELAYER_SECRET_KEY "${V[RELAYER_SECRET_KEY]}"
-[ -n "${V[SOLANA_RPC_URL]}" ] && railway_set facilitator SOLANA_RPC_URL "${V[SOLANA_RPC_URL]}"
-railway_set facilitator FACILITATOR_TOKEN "$FAC_TOKEN"
 
 # ---------- 4. First deploy (web first: its alias is the server's CORS origin) ----------
 say "First deploy"
@@ -141,7 +120,6 @@ if [ "$DRY" != 1 ]; then
 fi
 echo "web: $WEB_URL"
 railway_set server WEB_ORIGIN "$WEB_URL"
-RAILWAY_TOKEN="${RAILWAY_TOKEN:-}" run railway up --ci --service facilitator
 RAILWAY_TOKEN="${RAILWAY_TOKEN:-}" run railway up --ci --service server
 
 # ---------- 5. GitHub secrets + variables for .github/workflows/deploy.yml ----------
@@ -150,11 +128,9 @@ gh_secret RAILWAY_TOKEN "${RAILWAY_TOKEN:-dry}"
 gh_secret VERCEL_TOKEN "${VERCEL_TOKEN:-}"
 gh_secret VERCEL_ORG_ID "$ORG_ID"
 gh_secret VERCEL_PROJECT_ID "$PROJECT_ID"
-gh_secret SUPABASE_DB_URL "${V[SUPABASE_DB_URL]}"
-gh_secret FACILITATOR_TOKEN "$FAC_TOKEN"
+gh_secret SUPABASE_DB_URL "$(v SUPABASE_DB_URL)"
 gh_var SERVER_URL "$SERVER_URL"
 gh_var WEB_URL "$WEB_URL"
-gh_var FACILITATOR_URL "$FAC_URL"
 gh_var RAILWAY_ENABLED true   # (re)link Railway to the Deploy workflow
 
 # ---------- 6. CRE runner points at the hosted server ----------
@@ -166,12 +142,12 @@ fi
 
 # ---------- 7. Live smoke test ----------
 say "Smoke test"
-if [ "$DRY" = 1 ]; then echo "[dry-run] node scripts/deploy/smoke.mjs against $SERVER_URL / $WEB_URL / $FAC_URL"; else
-  SERVER_URL="$SERVER_URL" WEB_URL="$WEB_URL" FACILITATOR_URL="$FAC_URL" FACILITATOR_TOKEN="$FAC_TOKEN" node scripts/deploy/smoke.mjs
+if [ "$DRY" = 1 ]; then echo "[dry-run] node scripts/deploy/smoke.mjs against $SERVER_URL / $WEB_URL"; else
+  SERVER_URL="$SERVER_URL" WEB_URL="$WEB_URL" node scripts/deploy/smoke.mjs
 fi
 
 say "Done"
-echo "Web:         $WEB_URL"
-echo "API:         $SERVER_URL"
-echo "Facilitator: $FAC_URL"
+echo "Web: $WEB_URL"
+echo "API: $SERVER_URL"
+echo "CRE runner: on your laptop or VM, set SERVER_URL=$SERVER_URL CRE_TARGET=production-settings (see scripts/deploy/cre-runner.service)"
 echo "From now on every push to main deploys through .github/workflows/deploy.yml."

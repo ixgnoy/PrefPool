@@ -17,10 +17,10 @@ import { ApiError, getCampaign, getConfig, getResults, type CampaignView } from 
 import { refundDirect } from '@/lib/fund';
 import { layoutFish, type Phase } from '@/lib/aquarium';
 import { LAMPORTS, STATE_UI, TIMELINE, fmtSol, fmtTime, short, sol, type CampaignState } from '@/lib/campaign';
-import { DEFAULT_PLATFORM_FEE_USDC, DEMO_NOTE } from '@/lib/config';
+import { DEMO_NOTE } from '@/lib/config';
 import { campaignEscrowAddress, type ResearchReport } from '@as/shared';
 
-const CRE_STEPS = ['Read escrow from Solana', 'Decrypt (inside CRE)', 'Validate', 'Remove duplicates', 'Cohort check (≥ k)', 'Aggregate', 'Sign report', 'Commit report hash'];
+const CRE_STEPS = ['Read escrow from Solana', 'Decrypt (inside CRE)', 'Validate', 'Remove duplicates', 'Cohort check (≥ k)', 'Aggregate', 'Sign payee list'];
 type StepState = 'done' | 'run' | 'idle' | 'fail' | 'skip';
 const STEP_STYLE: Record<StepState, string> = {
   done: 'bg-ok-soft text-ok-ink', run: 'bg-blue-soft text-blue animate-pulse', idle: 'bg-subtle text-muted',
@@ -64,8 +64,8 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
   const { view } = useStore();
   const [programId, setProgramId] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  const [feeUsdc, setFeeUsdc] = useState(DEFAULT_PLATFORM_FEE_USDC);
-  useEffect(() => { getConfig().then((cfg) => { setProgramId(cfg.programId); setFeeUsdc(cfg.platformFeeUsdc ?? DEFAULT_PLATFORM_FEE_USDC); }).catch(() => {}); }, []);
+  const [viewStep, setViewStep] = useState<number | null>(null); // null = live; else replay that timeline step
+  useEffect(() => { getConfig().then((cfg) => { setProgramId(cfg.programId); }).catch(() => {}); }, []);
 
   if (c === undefined) return <div className="h-96 animate-pulse rounded-2xl bg-surface" />;
   if (c === null) return <EmptyState pose="researcher" text="We couldn't find this campaign." action={<Button href={owner ? '/research' : '/'}>Go back</Button>} />;
@@ -80,7 +80,9 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
     );
   }
 
-  const phase = phaseOf(c);
+  const live = phaseOf(c);
+  // Replay: the aquarium, counter and panels show the phase of the picked step; actions (reclaim) always follow live.
+  const phase: Phase = viewStep === null ? live : ([ 'collecting', 'collecting', 'aggregating', 'formed', live ] as const)[viewStep]!;
   const collecting = phase === 'collecting', aggregating = phase === 'aggregating', formed = phase === 'formed', settled = phase === 'settled', ins = phase === 'insufficient';
   const placeholders = collecting || aggregating ? Math.max(0, Math.min(c.networkSize, c.maxResponses + 10) - c.agents.length) : 0;
   const fish = layoutFish(c.agents, placeholders, phase);
@@ -94,7 +96,8 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
   // Buyer used the escape hatch: refunded without a zero-count CRE report (no report, or answers had been accepted).
   const reclaimed = c.state === 'REFUNDED' && (c.report?.acceptedCount ?? 1) > 0;
   const step = STATE_UI[c.state as CampaignState]?.step ?? 0;
-  const refunding = ins && c.state !== 'REFUNDED'; // too few answers; the refund is not confirmed until REFUNDED
+  const refunding = live === 'insufficient' && c.state !== 'REFUNDED'; // too few answers; the refund is not confirmed until REFUNDED
+  const liveStep = live === 'settled' || (live === 'insufficient' && !refunding) ? TIMELINE.length : step;
   const counter = collecting ? <><b className="font-mono">{c.answered}</b> answers in, needs <b className="font-mono">{c.minCohort}</b></>
     : aggregating ? <><b className="font-mono">{c.answered}</b> answers in. Opening them privately…</>
       : formed ? <>School formed: <b className="font-mono">{accepted}</b> valid answers</>
@@ -112,6 +115,13 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
         : reclaimed ? 'idle' : i < 4 ? 'done' : i === 4 ? 'fail' : 'skip';
   const pickedFish = fish.find((f) => f.id === picked);
   const abstainedTotal = c.abstained.reduce((n, a) => n + a.count, 0);
+  const evidence = [
+    <>{sol(budget)} locked in escrow {escrowAddress && <AddressLink address={escrowAddress} />}{c.fundTxHash && <> · funding tx <TxLink hash={c.fundTxHash} /></>}</>,
+    <><b className="font-mono">{c.answered}</b> answered, <b className="font-mono">{abstainedTotal}</b> skipped. Answers stayed sealed until the deadline.</>,
+    c.report ? <><b className="font-mono">{accepted}</b> answers accepted · CRE signed report hash <Mono className="text-[13px]">{short(c.report.reportHash, 6, 4)}</Mono> and the payee list</> : <>Not aggregated yet.</>,
+    c.settlementTxHash ? <>Payout transaction <TxLink hash={c.settlementTxHash} /></> : <>Payout not sent yet.</>,
+    c.settlementTxHash ? <>{live === 'settled' ? `${accepted} agents paid, ${sol(refund)} back to the buyer` : 'Refund'} · <TxLink hash={c.settlementTxHash} /></> : <>Not finished yet.</>,
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -127,7 +137,14 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
         </p>
       </div>
 
-      <Progress steps={TIMELINE.map((l, i) => (i === 4 && ins ? (refunding ? 'Refunding' : 'Refunded') : l))} current={settled || (ins && !refunding) ? TIMELINE.length : step} />
+      <Progress steps={TIMELINE.map((l, i) => (i === 4 && live === 'insufficient' ? (refunding ? 'Refunding' : 'Refunded') : l))} current={liveStep}
+        selected={viewStep} onSelect={(i) => setViewStep(i === Math.min(liveStep, TIMELINE.length - 1) ? null : i)} />
+      {viewStep !== null && (
+        <div className="rise -mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-blue-soft px-3 py-2 text-[13px]">
+          <span className="min-w-0">Replaying <b>{TIMELINE[viewStep]}</b>: {evidence[viewStep]}</span>
+          <button type="button" onClick={() => setViewStep(null)} className="font-bold text-blue hover:underline">Back to live</button>
+        </div>
+      )}
 
       {/* Hero: the aquarium. Each fish is one agent; the school forms when enough valid answers arrive. */}
       <section className="chunky flex flex-col gap-4 rounded-[20px] bg-surface p-3 sm:p-4">
@@ -156,11 +173,11 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
         </Card>
       )}
 
-      {(formed || settled) && (owner && settled ? <Results c={c} abstained={abstainedTotal} feeUsdc={feeUsdc} /> : (
+      {(formed || settled) && (owner && settled ? <Results c={c} abstained={abstainedTotal} /> : (
         <p className="text-sm text-muted">{settled ? 'Aggregated results go to the campaign owner only.' : 'Results unlock once payouts settle.'} Individual answers are never shown to anyone.</p>
       ))}
 
-      {owner && !settled && !ins && <Reclaim c={c} />}
+      {owner && live !== 'settled' && live !== 'insufficient' && <Reclaim c={c} />}
 
       <p className="text-xs text-muted">{DEMO_NOTE}</p>
 
@@ -177,7 +194,7 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
                 return (
                   <li key={label} className={cx('flex items-start gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold leading-snug transition-colors duration-500', STEP_STYLE[st])}>
                     {Icon && <Icon aria-hidden width={14} height={14} className="mt-px shrink-0" />}
-                    <span>{label.replace('≥ k', `≥ ${c.minCohort}`)}{i === 7 && (formed || settled) && !c.report?.evmTx ? ' (simulated)' : ''}</span>
+                    <span>{label.replace('≥ k', `≥ ${c.minCohort}`)}</span>
                   </li>
                 );
               })}
@@ -186,7 +203,7 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
               {escrowAddress && <div className="flex justify-between gap-3"><dt className="text-muted">Escrow account</dt><dd><AddressLink address={escrowAddress} /></dd></div>}
               {c.fundTxHash && <div className="flex justify-between gap-3"><dt className="text-muted">Funding tx</dt><dd><TxLink hash={c.fundTxHash} /></dd></div>}
               {c.report && <div className="flex items-center justify-between gap-3"><dt className="text-muted">Report hash</dt><dd className="flex items-center gap-1"><Mono className="text-[13px]">{short(c.report.reportHash, 6, 4)}</Mono><CopyButton text={c.report.reportHash} /></dd></div>}
-              {(formed || settled) && <div className="flex justify-between gap-3"><dt className="text-muted">Report commitment</dt><dd>{c.report?.evmTx ? <TxLink hash={c.report.evmTx} evm /> : <span className="font-semibold text-warn-ink">EVM commitment: simulated</span>}</dd></div>}
+              {c.report && c.settlementTxHash && <div className="flex justify-between gap-3"><dt className="text-muted">Report hash on Solana</dt><dd><TxLink hash={c.settlementTxHash} /></dd></div>}
             </dl>
           </Card>
           <Card className="flex flex-col gap-3 p-5">
@@ -215,7 +232,7 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
   );
 }
 
-function Results({ c, abstained, feeUsdc }: { c: CampaignView; abstained: number; feeUsdc: number }) {
+function Results({ c, abstained }: { c: CampaignView; abstained: number }) {
   const { session, accessTokens } = useStore();
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -274,7 +291,6 @@ function Results({ c, abstained, feeUsdc }: { c: CampaignView; abstained: number
       <p className="border-t border-line pt-3 text-[13px] text-muted">
         {chips.filter(([, n]) => n > 0).map(([l, n], i) => <span key={l}>{i > 0 && ', '}{l.toLowerCase()} <span className="font-mono text-ink">{n}</span></span>)}.
       </p>
-      <p className="text-[13px] text-muted">Your results are free here. A research agent fetching this report with the access token pays a <b className="font-mono text-ink">{feeUsdc} USDC</b> platform fee over <Term k="x402" /> (Devnet USDC).</p>
     </Card>
   );
 }

@@ -5,15 +5,12 @@ import { Fin } from '@/components/Fin';
 import { Button, Card, Countdown, Mono, PageTitle, StatePill } from '@/components/ui';
 import { useStore } from '@/lib/store';
 import { solOf } from '@/lib/campaign';
-import { getConfig, listMyCampaigns, type CampaignView } from '@/lib/api';
-import { DEFAULT_PLATFORM_FEE_USDC } from '@/lib/config';
+import { listMyCampaigns, type CampaignView } from '@/lib/api';
 import { categoryLabel } from '@/lib/policy';
 
 export default function ResearchDashboard() {
   const { session } = useStore();
   const [list, setList] = useState<CampaignView[] | null>(null);
-  const [feeUsdc, setFeeUsdc] = useState(DEFAULT_PLATFORM_FEE_USDC);
-  useEffect(() => { getConfig().then((c) => setFeeUsdc(c.platformFeeUsdc ?? DEFAULT_PLATFORM_FEE_USDC)).catch(() => {}); }, []);
   useEffect(() => {
     if (!session) return;
     const load = () => listMyCampaigns(session.sessionToken).then(setList).catch(() => setList([]));
@@ -25,13 +22,6 @@ export default function ResearchDashboard() {
   return (
     <>
       <PageTitle title="Your research" actions={<Button href="/research/new">New campaign</Button>} />
-      <Card className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4" data-testid="platform-fee">
-        <span className="rounded bg-blue-soft px-1.5 py-0.5 text-[11px] font-bold text-blue">x402</span>
-        <p className="min-w-0 flex-1 basis-72 text-[14px] text-muted">
-          Your own results are free on each campaign page. A research agent fetching a report with the campaign&apos;s access token
-          pays a fixed <b className="font-mono text-ink">{feeUsdc} USDC</b> platform fee (Devnet) over x402, straight from its wallet.
-        </p>
-      </Card>
       {list === null ? <div className="h-72 animate-pulse rounded-2xl bg-surface" /> : list.length === 0 ? (
         <Card className="flex flex-col items-center gap-4 px-6 py-12 text-center">
           <div className="grid size-28 place-items-center rounded-2xl bg-tank"><Fin pose="researcher" label="" /></div>

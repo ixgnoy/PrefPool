@@ -72584,12 +72584,12 @@ function createAgentSurveyServer(opts) {
     });
   });
   server2.registerTool("get_report", {
-    description: "Buy the final research report: pays the platform fee (3 USDC on Solana devnet) over x402 from the agent wallet, capped by max_report_price_usdc.",
+    description: "Get the final research report with the campaign access token. If the server charges a platform fee, pays it over x402 (USDC on Solana devnet) from the agent wallet, capped by max_report_price_usdc.",
     inputSchema: { campaignId: external_exports.string().regex(/^[0-9a-f]{64}$/), accessToken: external_exports.string().regex(/^[0-9a-f]{64}$/) }
   }, async ({ campaignId, accessToken }) => {
-    if (!opts.payingFetch) return fail("No agent wallet configured (agent_solana_secret_key in the plugin config): it pays the USDC report fee over x402.");
-    const res = await opts.payingFetch(`${opts.serverUrl}/api/campaigns/${campaignId}/report`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await (opts.payingFetch ?? f)(`${opts.serverUrl}/api/campaigns/${campaignId}/report`, { headers: { Authorization: `Bearer ${accessToken}` } });
     const body = await res.json().catch(() => null);
+    if (res.status === 402) return fail("This server charges a report fee: configure an agent wallet (agent_solana_secret_key) to pay it over x402.");
     if (!res.ok) return fail(`Report not available (${res.status}): ${body?.error ?? ""}`);
     return text(body);
   });

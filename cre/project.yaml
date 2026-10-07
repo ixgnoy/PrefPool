@@ -1,13 +1,14 @@
-# cre/project.yaml — RPCs per target (required for the EVM write, even in dry-run simulation)
+# cre/project.yaml — RPCs per target. The CLI requires one even though the workflow writes nothing on-chain itself:
+# the report hash lands on Solana in the settle tx (CRE-signed, verified by the escrow program).
 staging-settings:
   rpcs:
-    - chain-name: ethereum-testnet-sepolia-base-1
-      url: https://sepolia.base.org
+    - chain-name: solana-devnet
+      url: https://api.devnet.solana.com
 production-settings:
   rpcs:
-    - chain-name: ethereum-testnet-sepolia-base-1
-      url: https://sepolia.base.org
+    - chain-name: solana-devnet
+      url: https://api.devnet.solana.com
 confidential-settings:
   rpcs:
-    - chain-name: ethereum-testnet-sepolia-base-1
-      url: https://sepolia.base.org
+    - chain-name: solana-devnet
+      url: https://api.devnet.solana.com

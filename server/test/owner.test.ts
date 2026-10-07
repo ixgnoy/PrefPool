@@ -171,7 +171,7 @@ describe('dev view: trace', () => {
     const t = await setup();
     const cfg = (await request(t.app).get('/api/config/public').expect(200)).body;
     expect(cfg).toMatchObject({ cluster: 'devnet', programId: t.deps.chain.programId, relayerAddress: t.deps.chain.relayerAddress,
-      platformFeeUsdc: 3, platformFeePayTo: null, reportPublicKey: t.deps.config.reportPublicKey, rpcUrl: 'https://api.devnet.solana.com' });
+      platformFeeUsdc: 0, platformFeePayTo: null, reportPublicKey: t.deps.config.reportPublicKey, rpcUrl: 'https://api.devnet.solana.com' });
   });
 });
 
@@ -306,7 +306,7 @@ describe('analytics', () => {
     await t.report(refunded.campaignId, []);
     await t.decide(refunded.campaignId, agentId, 'abstain', 'blocked category: spending');
     const a = (await request(t.app).get('/api/campaigns/analytics').set(t.b).expect(200)).body;
-    expect(a).toMatchObject({ campaigns: 3, funded: 2, budgetLockedLamports: '60000000', paidOutLamports: '1500000', refundedLamports: '58500000',
+    expect(a).toMatchObject({ campaigns: 3, funded: 2, budgetLockedLamports: '60000000', inEscrowLamports: '0', paidOutLamports: '1500000', refundedLamports: '58500000',
       acceptedAnswers: 1, costPerAnswerLamports: '1500000', byState: { SETTLED: 1, REFUNDED: 1, AWAITING_FUNDING: 1 },
       declines: { blocked_category: 1 }, topDeclineReasons: [{ reason: 'blocked category: spending', count: 1 }] });
     expect(a.byCategory[0]).toMatchObject({ category: 'payments', campaigns: 3, acceptedAnswers: 1, paidLamports: '1500000' });

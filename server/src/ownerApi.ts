@@ -167,7 +167,7 @@ export function ownerRoutes(deps: Deps): Router {
     const cats = new Map<string, { category: string; campaigns: number; acceptedAnswers: number; paid: bigint; locked: bigint }>();
     const byDay = new Map<number, bigint>();
     const rejections = { malformed: 0, duplicate: 0, ineligible: 0, late: 0 };
-    let locked = 0n, paid = 0n, refunded = 0n, accepted = 0, funded = 0;
+    let locked = 0n, inEscrow = 0n, paid = 0n, refunded = 0n, accepted = 0, funded = 0;
     for (const c of rows) {
       byState[c.state] = (byState[c.state] ?? 0) + 1;
       const cat = cats.get(c.spec.category) ?? { category: c.spec.category, campaigns: 0, acceptedAnswers: 0, paid: 0n, locked: 0n };
@@ -177,6 +177,7 @@ export function ownerRoutes(deps: Deps): Router {
       funded++;
       const budget = BigInt(c.spec.rewardLamports) * BigInt(c.spec.maxResponses);
       locked += budget; cat.locked += budget;
+      if (c.state !== 'SETTLED' && c.state !== 'REFUNDED') inEscrow += budget; // settle/refund closes the escrow
       if (c.state === 'SETTLED' && c.settlement) {
         const p = BigInt(c.settlement.payoutTotalLamports ?? 0);
         paid += p; cat.paid += p; refunded += BigInt(c.settlement.refundLamports ?? 0);
@@ -193,7 +194,7 @@ export function ownerRoutes(deps: Deps): Router {
     for (const d of decisions) if (d.kind === 'abstain') declines[bucket(d.reason)] = (declines[bucket(d.reason)] ?? 0) + Number(d.n);
     res.json({
       campaigns: rows.length, funded, byState,
-      budgetLockedLamports: locked.toString(), paidOutLamports: paid.toString(), refundedLamports: refunded.toString(),
+      budgetLockedLamports: locked.toString(), inEscrowLamports: inEscrow.toString(), paidOutLamports: paid.toString(), refundedLamports: refunded.toString(),
       acceptedAnswers: accepted, costPerAnswerLamports: accepted ? (paid / BigInt(accepted)).toString() : null,
       answered: decisions.filter((d) => d.kind === 'answer').reduce((n, d) => n + Number(d.n), 0),
       abstained: decisions.filter((d) => d.kind === 'abstain').reduce((n, d) => n + Number(d.n), 0),
@@ -248,31 +249,32 @@ export function ownerRoutes(deps: Deps): Router {
   /** Dev view (FRONTEND_PRD §5.10): public on-chain facts and non-sensitive platform data, never answers or tokens. */
   r.get('/campaigns/:id/trace', async (req, res) => {
     const c = await getCampaign(deps, String(req.params.id));
-    const isBuyer = (await sessionAddress(deps, req)) === c.buyer_address;
-    const [times] = await deps.db.query<{ created_at: Date | string; updated_at: Date | string }>(`select created_at, updated_at from campaigns where id = $1`, [c.id]);
-    const envs = await deps.db.query<{ envelope: { epk: string; n: string; ct: string }; received_at_ms: string | number }>(
-      `select envelope, received_at_ms from envelopes where campaign_id = $1 order by received_at_ms`, [c.id]);
-    const [job] = await deps.db.query<{ id: string; status: string; log: string | null }>(`select id, status, log from cre_jobs where campaign_id = $1`, [c.id]);
-    const [report] = await deps.db.query<{ settlement: SettlementReport; research: unknown; evm_tx: string | null }>(
-      `select settlement, research, evm_tx from reports where campaign_id = $1`, [c.id]);
-
+    const [isBuyer, [times], envs, [job], [report]] = await Promise.all([
+      sessionAddress(deps, req).then((a) => a === c.buyer_address),
+      deps.db.query<{ created_at: Date | string; updated_at: Date | string }>(`select created_at, updated_at from campaigns where id = $1`, [c.id]),
+      deps.db.query<{ envelope: { epk: string; n: string; ct: string }; received_at_ms: string | number }>(
+        `select envelope, received_at_ms from envelopes where campaign_id = $1 order by received_at_ms`, [c.id]),
+      deps.db.query<{ id: string; status: string; log: string | null }>(`select id, status, log from cre_jobs where campaign_id = $1`, [c.id]),
+      deps.db.query<{ settlement: SettlementReport; research: unknown }>(`select settlement, research from reports where campaign_id = $1`, [c.id]),
+    ]);
     const describe = async (sig: string | null) => (sig ? deps.chain.describeTx(sig).catch(() => null) : null);
     const ms = (d: Date | string) => new Date(d).getTime();
+    // Three devnet RPC round-trips; in parallel, not one after another.
+    const [escrow, fundTx, settlementTx] = await Promise.all([
+      c.escrow_tx_ref ? deps.chain.fetchEscrow(c.id).catch(() => null) : null, describe(c.fund_tx_hash), describe(c.settlement_tx_hash)]);
 
     res.json({
       campaignId: c.id, state: c.state, createdAt: ms(times!.created_at), updatedAt: ms(times!.updated_at),
       spec: c.spec, rejectReasons: c.reject_reasons ?? [], deadlineMs: Number(c.deadline_ms), refundAfterMs: Number(c.refund_after_ms),
       escrowTxRef: c.escrow_tx_ref, buyerAddress: c.buyer_address,
       // The escrow PDA as RPC has it now; null before funding confirms and after settle/refund closes it.
-      escrow: c.escrow_tx_ref ? await deps.chain.fetchEscrow(c.id).catch(() => null) : null,
+      escrow,
       envelopes: { count: envs.length, firstAtMs: envs[0] ? Number(envs[0].received_at_ms) : null, lastAtMs: envs.at(-1) ? Number(envs.at(-1)!.received_at_ms) : null,
         sample: envs[0] ? { epk: envs[0].envelope.epk, n: envs[0].envelope.n, ciphertextBytes: envs[0].envelope.ct.length / 2 } : null },
       creJob: job ? { id: job.id, status: job.status, log: (job.log ?? '').slice(-20_000) } : null,
       settlementReport: report?.settlement ?? null,
       researchReport: isBuyer ? (report?.research ?? null) : null,
-      evm: { registryAddress: deps.config.reportRegistryAddress ?? null, txHash: report?.evm_tx ?? null },
-      fundTx: await describe(c.fund_tx_hash),
-      settlementTx: await describe(c.settlement_tx_hash),
+      fundTx, settlementTx,
     });
   });
 

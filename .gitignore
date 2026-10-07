@@ -15,14 +15,9 @@ dist/
 /contracts/
 
 # Railway deployment (never commit)
-/railway.json
-/scripts/deploy/railway-start.mjs
 
 # Project docs (never commit)
 /docs/
-evm/out/
-evm/cache/
-evm/broadcast/
 cre/**/.env
 cre/secrets.yaml
 *.wasm

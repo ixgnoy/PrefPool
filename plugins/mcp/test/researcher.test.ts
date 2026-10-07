@@ -173,9 +173,13 @@ describe('draft_campaign', () => {
 });
 
 describe('get_report', () => {
-  it('needs an agent wallet', async () => {
-    const call = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: dir() });
-    expect((await call('get_report', { campaignId: CID, accessToken: 'd'.repeat(64) })).text).toMatch(/No agent wallet/);
+  it('no fee: plain fetch with the token; a 402 without an agent wallet explains what to configure', async () => {
+    const free = (async () => new Response(JSON.stringify({ results: { q1: { A: 1 } } }), { status: 200 })) as typeof fetch;
+    const call = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: dir(), fetchFn: free });
+    expect((await call('get_report', { campaignId: CID, accessToken: 'd'.repeat(64) })).json.results.q1.A).toBe(1);
+    const paid = (async () => new Response('{}', { status: 402 })) as typeof fetch;
+    const call2 = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: dir(), fetchFn: paid });
+    expect((await call2('get_report', { campaignId: CID, accessToken: 'd'.repeat(64) })).text).toMatch(/agent wallet/);
   });
   it('passes the access token through the paying fetch', async () => {
     let seen: string | undefined;
