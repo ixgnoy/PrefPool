@@ -1,6 +1,6 @@
 # Agent answer fidelity: research review
 
-Oct 7, 2026 · literature review for CardanoFish / PrefPool
+Oct 7, 2026 · literature review for PrefPool
 
 **Question.** Respondent agents answer surveys on their owner's behalf. How do we make sure an answer reflects the owner (their habits, their actions, what they told the agent) rather than the model's own idea of a typical person? Do we need a clustering algorithm, or something else?
 
