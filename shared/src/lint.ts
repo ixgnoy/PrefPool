@@ -132,6 +132,9 @@ const SECRET_STARTS = new RegExp(String.raw`\b${SECRETISH_SRC}\s+(?:(?:usually|a
 const SIGN_WITH = /\b(?:(?:you|it|your\s+\w+|the agent)\s+(?:uses?\s+to\s+)?signs?\s+(?:\w+\s+)?with|(?:use|uses|used)\s+to\s+sign)\b/i;
 const SIGN_PROBE = /\b(?:keep|keeps|kept|contains?|letters?|characters?|chars?|digits?|bytes?)\b/i;
 // PINs and passcodes of the owner; "a PIN app" is a product. Upper-case PIN only, so "pin a message" passes.
+// Only a value ask counts ("Which PIN does your owner use?", "Does your PIN start with 1?"); naming PIN as a sign-in
+// method ("PIN or biometrics", options "Passkey / PIN / Password") does not.
+const PIN_ASK = /\b(?:which|what)(?:['\u2019]s|\s+is|\s+are)?\s+(?:the\s+|your\s+|their\s+)?(?:owner['\u2019]?s\s+)?(?:PINs?|pass ?codes?)\b|\b(?:PINs?|pass ?codes?)\s+(?:is|are|starts?|begins?|ends?|contains?|has|have)\b/i;
 const PIN = [/\bPINs?\b(?!\s+(?:apps?|pads?|methods?|devices?|settings?|resets?|policy|policies)\b)/, /\bpass ?codes?\b(?!\s+(?:apps?|methods?|devices?|settings?|resets?|policy|policies)\b)/i];
 const MECHANISM = /\b(?:(?:api[ _-]?keys?|(?:access|bearer|auth|refresh|session|oauth|api)\s+tokens?|credentials?|env(?:ironment)?\s+var(?:iable)?s?|key ?pairs?|passphrases?|(?:openai|anthropic|github|solana|wallet|ssh|gpg)\s+keys?)\b|passwords?\b(?!\s+managers?\b))/i;
 // A mechanism plus "your" plus where/what it is asks for the secret itself.
@@ -174,7 +177,7 @@ export function lintQuestion(q: Question): LintIssue[] {
     all.some((t) => SECRET.some((r) => r.test(t))) ||
     ((PROBE.test(joined) || SECRET_STARTS.test(joined)) && SECRETISH.test(joined) && POSSESSIVE.test(joined)) ||
     (SIGN_WITH.test(joined) && (PROBE.test(joined) || SIGN_PROBE.test(joined) || VALUE_ASK.test(joined))) ||
-    (PIN.some((r) => r.test(joined)) && POSSESSIVE.test(joined)) ||
+    (PIN.some((r) => r.test(joined)) && PIN_ASK.test(joined) && POSSESSIVE.test(joined)) ||
     (MECHANISM.test(joined) && POSSESSIVE.test(joined) && VALUE_ASK.test(joined));
   if (secret) issue('credential_ask', 'block', 'never ask about keys, passwords, tokens or secrets');
   else if (MECHANISM.test(joined)) issue('auth_mechanism', 'warn', "mentions credentials; ask how agents authenticate, never about a secret's value or where it is kept");
