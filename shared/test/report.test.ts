@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { aggregate, answersValid, hashResearch, signSettlement, verifySettlementReport, type UnsignedSettlement } from '../src/report.js';
+import { aggregate, answersValid, clientCounts, hashResearch, sourceCounts, signSettlement, verifySettlementReport, type UnsignedSettlement } from '../src/report.js';
 import type { Question } from '../src/types.js';
 import { addressFromSeed, campaignEscrowAddress } from '../src/address.js';
 
@@ -73,5 +73,42 @@ describe('aggregate / answersValid', () => {
     expect(answersValid(Q, { q1: 1 })).toBe(false);
     expect(answersValid(Q, { q1: 1, q2: 3, q9: 1 })).toBe(false);
     expect(answersValid(Q, { q1: 0.5, q2: 3 })).toBe(false);
+  });
+});
+
+describe('clientCounts', () => {
+  it('folds buckets under 3 into other', () => {
+    const m = (name: string, modelId?: string) => ({ sources: {}, client: { name, version: '1', ...(modelId ? { modelId } : {}) } });
+    expect(clientCounts([m('a'), m('a'), m('a'), m('b', 'rare-7b'), null])).toEqual({ a: 3, other: 2 });
+  });
+  it('keys by name and model id, sorted, independent of input order', () => {
+    const m = (name: string, modelId?: string) => ({ sources: {}, client: { name, version: '1', ...(modelId ? { modelId } : {}) } });
+    const metas = [m('z'), m('a', 'm1'), m('z'), null, m('a', 'm1'), null, m('z'), m('a', 'm1'), null];
+    const out = clientCounts(metas);
+    expect(out).toEqual({ 'a (m1)': 3, unknown: 3, z: 3 });
+    expect(Object.keys(out)).toEqual(['a (m1)', 'unknown', 'z']);
+    expect(JSON.stringify(clientCounts([...metas].reverse()))).toBe(JSON.stringify(out));
+  });
+  it('keeps a client literally named __proto__ as a plain key', () => {
+    const m = { sources: {}, client: { name: '__proto__', version: '1' } };
+    const out = clientCounts([m, m, m]);
+    expect(Object.keys(out)).toEqual(['__proto__']);
+    expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
+  });
+});
+
+describe('sourceCounts', () => {
+  it('counts per question; missing, unknown tags and v1 count as unknown', () => {
+    const qs: Question[] = [{ id: 'q1', type: 'likert_5', text: 'a' }, { id: 'q2', type: 'likert_5', text: 'b' }];
+    const out = sourceCounts(qs, [
+      { sources: { q1: 'checked', q2: 'owner_told' }, client: { name: 'a', version: '1' } },
+      { sources: { q1: 'inferred' }, client: { name: 'a', version: '1' } },
+      { sources: { q1: 'made_up' as never }, client: { name: 'a', version: '1' } },
+      null,
+    ]);
+    expect(out).toEqual({
+      q1: { checked: 1, owner_told: 0, inferred: 1, unknown: 2 },
+      q2: { checked: 0, owner_told: 1, inferred: 0, unknown: 3 },
+    });
   });
 });

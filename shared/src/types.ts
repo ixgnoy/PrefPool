@@ -45,8 +45,16 @@ export type Decision =
   | { kind: 'answer'; answers: Answers }
   | { kind: 'abstain'; reason: string };
 
+/** Sealed inside a v2 envelope next to the answers; only CRE (and the owner's own copy) can read it. */
+export interface EnvelopeMeta {
+  sources: Record<string, AnswerSource>;
+  /** Self-reported by the plugin; a hint for grouping, never trusted for eligibility. */
+  client: { name: string; version: string; modelId?: string };
+}
+
 export interface Envelope {
-  v: 1;
+  /** 1: answers only. 2: answers plus EnvelopeMeta. Same key derivation and AAD. */
+  v: 1 | 2;
   campaignId: Hex;
   respondentAddress: Address;
   epk: Hex;
@@ -100,4 +108,8 @@ export interface ResearchReport {
   simulatedHumans?: number;
   /** Accepted respondents with a calibration pass valid at the deadline; present only when CRE received calibration data. */
   calibratedAgents?: number;
+  /** Per question: how many accepted answers carried each source tag (v1 envelopes count as unknown). */
+  sources?: Record<string, Record<AnswerSource | 'unknown', number>>;
+  /** Accepted answers per client (name, model id when reported); buckets under 3 fold into "other". */
+  clients?: Record<string, number>;
 }

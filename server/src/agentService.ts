@@ -8,13 +8,17 @@ import { agentView, type CampaignRow, type CampaignView } from './views.js';
 
 export interface AgentRef { id: string; address: string }
 
-const envelopeSchema = z.object({
-  v: z.literal(1),
+/**
+ * Shape check only (the platform never sees plaintext). v2 adds sealed answer sources and client; ct is capped at
+ * 2000 hex so a CRE page of 10 envelopes stays under the 25 KB consensus observation limit (creApi PAGE).
+ */
+export const envelopeSchema = z.object({
+  v: z.union([z.literal(1), z.literal(2)]),
   campaignId: z.string().regex(/^[0-9a-f]{64}$/),
   respondentAddress: z.string().refine(isSolanaAddress, 'not a Solana address'),
   epk: z.string().regex(/^[0-9a-f]{64}$/),
   n: z.string().regex(/^[0-9a-f]{48}$/),
-  ct: z.string().regex(/^[0-9a-f]{34,1600}$/),
+  ct: z.string().regex(/^[0-9a-f]{34,2000}$/),
 }).strict();
 
 async function activeCampaign(deps: Deps, id: string): Promise<CampaignRow> {

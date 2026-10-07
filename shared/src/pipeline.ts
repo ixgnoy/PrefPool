@@ -1,10 +1,10 @@
 // shared/src/pipeline.ts
 import { settleAddressOk } from './settlePayload';
-import { openEnvelope } from './envelope';
+import { openSealed } from './envelope';
 import { decodeCampaignAccount, type EscrowAccount } from './escrowAccount';
-import { aggregate, answersValid, hashResearch, signSettlement } from './report';
+import { aggregate, answersValid, clientCounts, hashResearch, signSettlement, sourceCounts } from './report';
 import type { PersonhoodKind } from './personhood';
-import type { Answers, Envelope, Question, ResearchReport, SettlementReport } from './types';
+import type { Answers, Envelope, EnvelopeMeta, Question, ResearchReport, SettlementReport } from './types';
 
 /** GET /api/cre/campaigns/:id/context (C5). */
 export interface CreContext {
@@ -51,7 +51,7 @@ export function runPipeline(input: PipelineInput): PipelineOutput {
   const seen = new Set<string>();
   const seenHumans = new Set<string>();
   const counts = { malformed: 0, duplicate: 0, ineligible: 0, late: 0 };
-  const accepted: { address: string; answers: Answers; kind: PersonhoodKind | null }[] = [];
+  const accepted: { address: string; answers: Answers; meta: EnvelopeMeta | null; kind: PersonhoodKind | null }[] = [];
   const ordered = [...input.envelopes].sort(
     (a, b) => a.receivedAtMs - b.receivedAtMs || (a.respondentAddress < b.respondentAddress ? -1 : 1),
   );
@@ -70,14 +70,15 @@ export function runPipeline(input: PipelineInput): PipelineOutput {
     }
     if (context.calibratedAgentsOnly && !((context.calibratedUntil?.[env.respondentAddress] ?? 0) > datum.deadlineMs)) { counts.ineligible++; continue; }
     let answers: Answers;
+    let meta: EnvelopeMeta | null;
     try {
-      answers = openEnvelope(input.envelopeSecretKey, env);
+      ({ answers, meta } = openSealed(input.envelopeSecretKey, env));
     } catch {
       counts.malformed++; continue;
     }
     if (!answersValid(context.questions, answers)) { counts.malformed++; continue; }
     if (accepted.length >= datum.maxResponses) { counts.ineligible++; continue; }
-    accepted.push({ address: env.respondentAddress, answers, kind: ph?.kind ?? null });
+    accepted.push({ address: env.respondentAddress, answers, meta, kind: ph?.kind ?? null });
   }
 
   const cohortMet = accepted.length >= datum.minCohort;
@@ -86,6 +87,8 @@ export function runPipeline(input: PipelineInput): PipelineOutput {
     ? {
         schemaVersion: 1, campaignId: context.campaignId, validRespondents: winners.length, minCohort: datum.minCohort,
         results: aggregate(context.questions, winners.map((w) => w.answers)),
+        sources: sourceCounts(context.questions, winners.map((w) => w.meta)),
+        clients: clientCounts(winners.map((w) => w.meta)),
         ...(context.personhood ? {
           verifiedHumans: winners.filter((w) => w.kind === 'world').length,
           simulatedHumans: winners.filter((w) => w.kind === 'simulated').length,

@@ -143,4 +143,21 @@ describe('runPipeline: on-chain settlement signature', () => {
     const tampered = { ...settlement, settleSignature: settlement.settleSignature.replace(/^../, '00') };
     expect(verifySettlementReport(tampered, repPk, { minCohort: 15, maxResponses: 30 })).toContain('bad settle signature');
   });
+  it('reports answer sources and clients from v2 envelopes', () => {
+    const base = input(16);
+    const meta = { sources: { q1: 'owner_told' as const, q2: 'checked' as const }, client: { name: 'agent-survey-mcp', version: '0.2.0' } };
+    base.envelopes = base.envelopes.map((e, i) => ({ ...sealEnvelope(encPk, CAMPAIGN, base.context.registered[i]!, { q1: i % 2, q2: 4 }, meta), receivedAtMs: e.receivedAtMs }));
+    const { research, settlement } = runPipeline(base);
+    expect(research!.sources!.q1).toEqual({ checked: 0, owner_told: 16, inferred: 0, unknown: 0 });
+    expect(research!.sources!.q2).toEqual({ checked: 16, owner_told: 0, inferred: 0, unknown: 0 });
+    expect(research!.clients).toEqual({ 'agent-survey-mcp': 16 });
+    // Same envelopes in another arrival order on the wire: byte-identical report.
+    const again = runPipeline({ ...base, envelopes: [...base.envelopes].reverse() });
+    expect(again.settlement.resultHash).toBe(settlement.resultHash);
+  });
+  it('counts v1 envelopes as unknown source and client', () => {
+    const { research } = runPipeline(input(16));
+    expect(research!.sources!.q2.unknown).toBe(16);
+    expect(research!.clients).toEqual({ unknown: 16 });
+  });
 });

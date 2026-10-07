@@ -3,7 +3,7 @@
 // with a wallet signature over a fixed message; the browser derives the transcript key from it and opens the sealed
 // copies locally. The server, the buyer and CRE's report never see these per-person answers.
 import { useEffect, useMemo, useState } from 'react';
-import { openEnvelope, transcriptKeyFromSignature, transcriptKeyMessage, utf8ToBytes, bytesToHex, type Answers, type Question } from '@as/shared';
+import { openSealed, transcriptKeyFromSignature, transcriptKeyMessage, utf8ToBytes, bytesToHex, type AnswerSource, type Answers, type Question } from '@as/shared';
 import { solOf } from '@/lib/campaign';
 import { Fin } from '@/components/Fin';
 import { Button, Card, EmptyState, Pill, TxLink, cx } from '@/components/ui';
@@ -45,8 +45,12 @@ export function MyAnswers() {
   }
 
   const opened = useMemo(() => (copies ?? []).map((c) => {
-    if (!transcriptKey) return { c, answers: null as Answers | null };
-    try { return { c, answers: openEnvelope(transcriptKey, c.envelope) }; } catch { return { c, answers: null }; }
+    const none = { c, answers: null as Answers | null, sources: null as Record<string, AnswerSource> | null };
+    if (!transcriptKey) return none;
+    try {
+      const o = openSealed(transcriptKey, c.envelope);
+      return { c, answers: o.answers, sources: o.meta?.sources ?? null };
+    } catch { return none; }
   }), [copies, transcriptKey]);
   const outcome = (id: string) => items.find((i) => i.campaignId === id);
 
@@ -97,7 +101,7 @@ export function MyAnswers() {
           <p className="text-sm text-muted">No sealed copies yet. Your agent adds one each time it answers, once you&apos;ve unlocked here at least once. The web agent and the PrefPool plugin both do this.</p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {opened.map(({ c, answers }) => {
+            {opened.map(({ c, answers, sources }) => {
               const o = outcome(c.campaignId);
               return (
                 <li key={c.campaignId} className="rounded-2xl border border-line p-4">
@@ -116,7 +120,10 @@ export function MyAnswers() {
                       {c.questions.map((q) => (
                         <div key={q.id} className="grid gap-1 rounded-xl bg-subtle px-3 py-2 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center">
                           <dt className="text-sm">{q.text}</dt>
-                          <dd className="text-sm font-bold sm:text-right">{answerLabel(q, answers[q.id])}</dd>
+                          <dd className="flex items-center gap-2 text-sm font-bold sm:justify-end">
+                            {answerLabel(q, answers[q.id])}
+                            {sources?.[q.id] && <Pill>{sources[q.id]!.replace('_', ' ')}</Pill>}
+                          </dd>
                         </div>
                       ))}
                     </dl>

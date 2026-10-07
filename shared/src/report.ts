@@ -1,7 +1,7 @@
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { bytesToHex, hexToBytes, jcs, sha256Hex } from './crypto';
 import { signSettlePayload, verifySettlePayload } from './settlePayload';
-import type { Answers, Question, ResearchReport, SettlementReport } from './types';
+import { ANSWER_SOURCES, type AnswerSource, type Answers, type EnvelopeMeta, type Question, type ResearchReport, type SettlementReport } from './types';
 
 export type UnsignedSettlement = Omit<SettlementReport, 'reportHash' | 'signature' | 'settleSignature'>;
 
@@ -73,4 +73,41 @@ export function answersValid(questions: Question[], a: Answers): boolean {
     if (!Number.isInteger(v)) return false;
     return q.type === 'likert_5' ? v! >= 1 && v! <= 5 : v! >= 0 && v! < (q.options?.length ?? 0);
   });
+}
+
+/** Per question, how many accepted answers carried each source tag. v1 envelopes (no meta) count as unknown. */
+export function sourceCounts(questions: Question[], metas: (EnvelopeMeta | null)[]): Record<string, Record<AnswerSource | 'unknown', number>> {
+  const out: Record<string, Record<AnswerSource | 'unknown', number>> = {};
+  for (const q of questions) {
+    const row: Record<AnswerSource | 'unknown', number> = { checked: 0, owner_told: 0, inferred: 0, unknown: 0 };
+    for (const m of metas) {
+      const s = m && Object.prototype.hasOwnProperty.call(m.sources, q.id) ? m.sources[q.id] : undefined;
+      row[s && (ANSWER_SOURCES as readonly string[]).includes(s) ? s : 'unknown']++;
+    }
+    out[q.id] = row;
+  }
+  return out;
+}
+
+export const MIN_CLIENT_BUCKET = 3;
+/**
+ * Accepted answers per client ("name" or "name (modelId)"; v1 envelopes are "unknown"). Buckets under MIN_CLIENT_BUCKET
+ * fold into "other" so a rare model cannot single out one agent. Keys come out sorted, so the report bytes do not depend
+ * on envelope order.
+ */
+export function clientCounts(metas: (EnvelopeMeta | null)[]): Record<string, number> {
+  const raw = new Map<string, number>();
+  for (const m of metas) {
+    const k = m ? `${m.client.name}${m.client.modelId ? ` (${m.client.modelId})` : ''}` : 'unknown';
+    raw.set(k, (raw.get(k) ?? 0) + 1);
+  }
+  const kept: [string, number][] = [];
+  let other = 0;
+  for (const [k, n] of [...raw].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    if (n >= MIN_CLIENT_BUCKET && k !== 'other') kept.push([k, n]); else other += n;
+  }
+  if (other > 0) kept.push(['other', other]);
+  kept.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  // fromEntries defines own properties, so a client named "__proto__" stays a plain key.
+  return Object.fromEntries(kept);
 }

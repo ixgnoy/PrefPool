@@ -205,6 +205,16 @@ describe('agents', () => {
     const res = await request(app).post(`/api/agents/campaigns/${id}/envelope`).set(other.agentAuth).send(late).expect(409);
     expect(res.body.code).toBe('LATE');
   });
+  it('accepts a v2 envelope (sealed sources and client) and refuses an oversized or unknown-version one', async () => {
+    const { app, id } = await activeCampaign();
+    const a = await registerAgent(app);
+    const meta = { sources: { q1: 'checked' as const, q2: 'owner_told' as const, q3: 'inferred' as const }, client: { name: 'agent-survey-mcp', version: '0.2.0', modelId: 'claude-x' } };
+    const env = sealEnvelope(keys.encPk, id, a.address, { q1: 1, q2: 4, q3: 0 }, meta);
+    expect(env.v).toBe(2);
+    await request(app).post(`/api/agents/campaigns/${id}/envelope`).set(a.agentAuth).send({ ...env, v: 3 }).expect(400);
+    await request(app).post(`/api/agents/campaigns/${id}/envelope`).set(a.agentAuth).send({ ...env, ct: 'ab'.repeat(1001) }).expect(400);
+    await request(app).post(`/api/agents/campaigns/${id}/envelope`).set(a.agentAuth).send(env).expect(204);
+  });
   it('records abstain reasons and shows counts but never answers', async () => {
     const { app, id } = await activeCampaign();
     const a = await registerAgent(app);
