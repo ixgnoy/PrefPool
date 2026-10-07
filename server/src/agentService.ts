@@ -21,7 +21,7 @@ export const envelopeSchema = z.object({
   ct: z.string().regex(/^[0-9a-f]{34,2000}$/),
 }).strict();
 
-async function activeCampaign(deps: Deps, id: string): Promise<CampaignRow> {
+export async function activeCampaign(deps: Deps, id: string): Promise<CampaignRow> {
   const c = await getCampaign(deps, id);
   if (c.state !== 'ACTIVE') throw new HttpError(409, 'NOT_ACTIVE', `campaign is ${c.state}`);
   if (deps.now() > Number(c.deadline_ms)) throw new HttpError(409, 'LATE', 'deadline passed');
@@ -34,9 +34,16 @@ export async function activeCampaignViews(deps: Deps): Promise<CampaignView[]> {
 }
 
 /** Records that the agent is active (connection status) and refuses work while its owner has paused it. */
-async function onDuty(deps: Deps, agent: AgentRef) {
+export async function onDuty(deps: Deps, agent: AgentRef) {
   const [a] = await deps.db.query<{ paused: boolean }>(`update agents set last_seen_at = now() where id = $1 returning paused`, [agent.id]);
   if (a?.paused) throw new HttpError(409, 'AGENT_PAUSED', 'this agent is paused by its owner');
+}
+
+/** An explicit abstain (abstain_campaign) is final; policy and tier abstains stay recoverable. */
+export async function refuseIfAbstained(deps: Deps, agent: AgentRef, campaignId: string) {
+  const [abstained] = await deps.db.query(`select 1 from agent_decisions where campaign_id = $1 and agent_id = $2 and kind = 'abstain' and reason = any($3::text[])`,
+    [campaignId, agent.id, EXPLICIT_ABSTAIN_REASONS]);
+  if (abstained) throw new HttpError(409, 'ABSTAINED', 'this agent abstained from this campaign and cannot answer it');
 }
 
 /** First decision wins; a later answer/abstain for the same campaign is ignored. */
@@ -65,10 +72,7 @@ export async function acceptEnvelope(deps: Deps, agent: AgentRef, raw: unknown):
   if (env.respondentAddress !== agent.address) throw new HttpError(403, 'NOT_YOUR_ADDRESS', 'respondentAddress must be your registered address');
   await onDuty(deps, agent);
   const c = await activeCampaign(deps, env.campaignId);
-  // An explicit abstain (abstain_campaign) is final; policy and tier abstains stay recoverable.
-  const [abstained] = await deps.db.query(`select 1 from agent_decisions where campaign_id = $1 and agent_id = $2 and kind = 'abstain' and reason = any($3::text[])`,
-    [env.campaignId, agent.id, EXPLICIT_ABSTAIN_REASONS]);
-  if (abstained) throw new HttpError(409, 'ABSTAINED', 'this agent abstained from this campaign and cannot answer it');
+  await refuseIfAbstained(deps, agent, env.campaignId);
   const [me] = await deps.db.query<{ personhood_nullifier: string | null; calibrated_ms: string | number | null }>(
     `select personhood_nullifier, extract(epoch from calibrated_until) * 1000 as calibrated_ms from agents where id = $1`, [agent.id]);
   const nullifier = me?.personhood_nullifier ?? null;

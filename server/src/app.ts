@@ -11,6 +11,7 @@ import { HttpError, type Deps } from './deps.js';
 import { ownerRoutes } from './ownerApi.js';
 import { personhoodRoutes } from './personhood.js';
 import { calibrationRoutes } from './calibration.js';
+import { approvalRoutes } from './approvals.js';
 
 /** Express 5 forwards rejected async handlers to the error middleware (Express 4 does not). */
 export function createApp(deps: Deps, extra: (app: express.Express) => void = () => {}) {
@@ -42,6 +43,7 @@ export function createApp(deps: Deps, extra: (app: express.Express) => void = ()
   api.use(agentRoutes(deps));
   api.use(personhoodRoutes(deps));
   api.use(calibrationRoutes(deps));
+  api.use(approvalRoutes(deps));
   api.use(creRoutes(deps));
   extra(app);
   app.use('/api', api);
