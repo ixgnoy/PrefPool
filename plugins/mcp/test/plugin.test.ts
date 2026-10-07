@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import request from 'supertest';
-import { openEnvelope, optionOrder, orderKey, transcriptKeyFromSignature, type Answers, type CampaignDatumFields, type Envelope } from '@as/shared';
+import { openEnvelope, openSealed, optionOrder, orderKey, transcriptKeyFromSignature, type Answers, type CampaignDatumFields, type Envelope } from '@as/shared';
 import { tick } from '../../../server/src/lifecycle.js';
 import { demoSpec, escrowFor, keys, listen, login, makeDeps, wallet } from '../../../server/test/helpers.js';
 import { createAgentSurveyServer } from '../src/tools.js';
@@ -276,6 +276,33 @@ describe('agent-survey MCP plugin', () => {
     expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true, sources: { q1: 'guessed' } })).isError).toBe(true); // closed source list
     const ok = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true, sources: { q1: 'checked', q2: 'inferred', q3: 'owner_told' } });
     expect(ok.isError).toBe(false);
+    await w.srv.close();
+  });
+
+  it('seals sources the store can back and the client identity', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken, modelId: 'test-7b' });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
+    await call('remember_owner_fact', { fact: 'spends about $40 a month on AI tools', categories: ['spending'] });
+    const r = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, sources: { q1: 'checked', q2: 'owner_told', q3: 'owner_told' } });
+    const expected = { q1: 'checked', q2: 'inferred', q3: 'owner_told' }; // q2 (blockers) has no owner fact
+    expect(r.json.sources).toEqual(expected);
+    const [row] = await w.deps.db.query<{ envelope: Envelope }>(`select envelope from envelopes where campaign_id = $1`, [w.campaignId]);
+    const { answers, meta } = openSealed(keys.encSk, row!.envelope);
+    expect(answers).toEqual(canonicalOf(w.owner.address, w.campaignId, { q1: 0, q2: 3, q3: 1 }));
+    expect(meta!.sources).toEqual(expected);
+    expect(meta!.client).toEqual({ name: 'agent-survey-mcp', version: '0.2.0', modelId: 'test-7b' });
+    await w.srv.close();
+  });
+
+  it('drops a malformed model id but keeps the rest of the meta', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken, modelId: 'bad<model>id' });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
+    await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    const [row] = await w.deps.db.query<{ envelope: Envelope }>(`select envelope from envelopes where campaign_id = $1`, [w.campaignId]);
+    const { meta } = openSealed(keys.encSk, row!.envelope);
+    expect(meta).toEqual({ sources: { q1: 'inferred', q2: 'inferred', q3: 'inferred' }, client: { name: 'agent-survey-mcp', version: '0.2.0' } });
     await w.srv.close();
   });
 

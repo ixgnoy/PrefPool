@@ -43,7 +43,9 @@ export function sealEnvelope(
 const isStr = (x: unknown): x is string => typeof x === 'string';
 /** Client strings: short, plain characters (they become report bucket keys). */
 const CLIENT_STR = /^[\w.@\/:+ -]{1,64}$/;
-const isClientStr = (x: unknown): x is string => isStr(x) && CLIENT_STR.test(x);
+/** True when x is a client string cleanMeta keeps (name, version, modelId). Clients check before sealing so one bad field doesn't drop all meta. */
+export const isClientString = (x: unknown): x is string => isStr(x) && CLIENT_STR.test(x);
+const isClientStr = isClientString;
 /** Bucket names clientCounts uses itself; a client claiming one must not merge into it. */
 const RESERVED_CLIENT_NAMES = new Set(['unknown', 'other']);
 const isPlainObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);

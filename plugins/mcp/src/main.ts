@@ -20,6 +20,7 @@ const server = createAgentSurveyServer({
   wallet,
   payingFetch: wallet ? await reportPayingFetch(wallet.secretKey, { maxUsdc: Number(env.MAX_REPORT_PRICE_USDC || '5'), rpcUrl }) : undefined,
   maxBudgetSol: Number(env.MAX_BUDGET_SOL || '0'),
+  modelId: env.AGENT_MODEL_ID || undefined,
 });
 await server.connect(new StdioServerTransport());
 if (env.AGENT_TOKEN) {

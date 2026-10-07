@@ -1,16 +1,18 @@
 // plugins/mcp/src/tools.ts
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  ABSTAIN_REASONS, ABSTAIN_REASON_KEYS, AGENT_CATEGORIES, ANSWER_SOURCES, OWNER_FACING_CATEGORIES, answersValid, approvalNeeded, calibrationGate, canonicalAnswers, categoriesOf, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
+  ABSTAIN_REASONS, ABSTAIN_REASON_KEYS, AGENT_CATEGORIES, ANSWER_SOURCES, OWNER_FACING_CATEGORIES, answersValid, approvalNeeded, calibrationGate, canonicalAnswers, categoriesOf, evaluatePolicy, LAMPORTS_PER_SOL, isClientString, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
   shownQuestion,
-  type CampaignSpec,
+  type CampaignSpec, type EnvelopeMeta,
 } from '@as/shared';
 import { z } from 'zod';
-import { factId, factProblem, factsFor, FACT_CATEGORIES } from './facts.js';
+import { deriveSources, factId, factProblem, factsFor, FACT_CATEGORIES } from './facts.js';
 import { DEFAULT_POLICY, localStore, type LocalState } from './store.js';
 import { fundTxProblem, type AgentWallet } from './wallet.js';
 
 /** campaign_escrow on devnet; the server's /api/config/public is authoritative, this is the fallback. */
+/** Sealed with each answer as client.version; also the MCP server version. */
+export const PLUGIN_VERSION = '0.2.0';
 export const DEFAULT_PROGRAM_ID = 'Cm1NmUPngoFke9pc8zXsK2qebBEfPb76bS3gHfjMS2hN';
 const sol = (lamports: bigint | string | number) => Number(BigInt(lamports)) / LAMPORTS_PER_SOL;
 const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
@@ -31,6 +33,8 @@ export interface PluginOptions {
   wallet?: AgentWallet;
   /** Largest campaign budget (SOL) the agent may fund on its own (F18). Default 0: always hand funding to a human. */
   maxBudgetSol?: number;
+  /** Self-reported model id (AGENT_MODEL_ID); sealed with each answer and used to expire calibration when it changes. */
+  modelId?: string;
   fetchFn?: typeof fetch;
   today?: () => string;
 }
@@ -60,7 +64,7 @@ const untrusted = (c: AgentCampaign, address: string) => {
 export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   const f = opts.fetchFn ?? fetch;
   const store = localStore(opts.dataDir, opts.today ?? (() => new Date().toISOString().slice(0, 10)));
-  const server = new McpServer({ name: 'agent-survey', version: '0.1.0' });
+  const server = new McpServer({ name: 'agent-survey', version: PLUGIN_VERSION });
   const agentHeaders = () => ({ Authorization: `Bearer ${opts.agentToken}`, 'Content-Type': 'application/json' });
   const api = async (path: string, init: RequestInit = {}) => {
     const res = await f(`${opts.serverUrl}/api${path}`, init);
@@ -205,11 +209,13 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
 
   server.registerTool('submit_answer', {
     description: 'Answer a campaign for the owner. Answers are option positions as shown to you (single_choice, 0-based, in the order '
-      + 'list_campaigns/evaluate_campaign showed them) or 1..5 (likert_5). Encrypted on this machine before sending.',
+      + 'list_campaigns/evaluate_campaign showed them) or 1..5 (likert_5). Encrypted on this machine before sending. '
+      + 'sources: per question, checked (you verified it in your own setup), owner_told (an ownerFacts entry says so) or inferred. '
+      + 'Claims the store cannot back are downgraded to inferred.',
     inputSchema: { campaignId: z.string().regex(/^[0-9a-f]{64}$/), answers: z.record(z.string(), z.number().int()), ownerApproved: z.boolean().optional(),
-      // Per-question answer source (see evaluate_campaign answeringRule). Accepted now; sealed from G8 on.
+      // Per-question answer source (see evaluate_campaign answeringRule); sealed after deriveSources checks it against the fact store.
       sources: z.record(z.string(), z.enum(ANSWER_SOURCES)).optional() },
-  }, async ({ campaignId, answers, ownerApproved }) => {
+  }, async ({ campaignId, answers, ownerApproved, sources }) => {
     const missing = needToken(); if (missing) return missing;
     if ((store.load().abstained ?? []).includes(campaignId)) return fail('already decided for this campaign: you abstained from it');
     const c = await findCampaign(campaignId);
@@ -235,15 +241,21 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     if (!answersValid(c.questions, answers) || !answersValid(c.questions, canonical)) {
       return fail('Answers must cover every question with a listed option (0-based position, in the order shown to you) or 1..5.');
     }
-    const envelope = sealEnvelope(c.envelopePublicKey, campaignId, meRow.address, canonical);
+    // A malformed model id would make CRE drop the whole meta, so it is left out instead.
+    const modelId = isClientString(opts.modelId) ? opts.modelId : undefined;
+    const meta: EnvelopeMeta = {
+      sources: deriveSources(c, sources, s.facts),
+      client: { name: 'agent-survey-mcp', version: PLUGIN_VERSION, ...(modelId ? { modelId } : {}) },
+    };
+    const envelope = sealEnvelope(c.envelopePublicKey, campaignId, meRow.address, canonical, meta);
     await api(`/agents/campaigns/${campaignId}/envelope`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(envelope) });
     // Encrypt to self: a second copy sealed to the owner's wallet-derived key, so they can read it on the web.
     if (meRow.transcriptPublicKey) {
-      const copy = sealEnvelope(meRow.transcriptPublicKey, campaignId, meRow.address, canonical);
+      const copy = sealEnvelope(meRow.transcriptPublicKey, campaignId, meRow.address, canonical, meta);
       await api(`/agents/campaigns/${campaignId}/answer-copy`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) }).catch(() => {});
     }
     store.save({ ...s, answeredToday: s.answeredToday + 1, decided: [...s.decided, campaignId] });
-    return text({ submitted: true, note: 'Encrypted locally; only the aggregate is ever released. Reward is paid to your wallet at settlement.', ...(await calibrationWaiting()) });
+    return text({ submitted: true, sources: meta.sources, note: 'Encrypted locally; only the aggregate is ever released. Reward is paid to your wallet at settlement.', ...(await calibrationWaiting()) });
   });
 
   // ---------- researcher side ----------

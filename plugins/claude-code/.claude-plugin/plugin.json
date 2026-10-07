@@ -1,7 +1,7 @@
 {
   "name": "agent-survey",
   "displayName": "Agent Survey Marketplace",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Let your agent answer paid research campaigns under your policy (rewards in SOL), or run campaigns and buy reports over x402 (USDC) on Solana devnet.",
   "author": {
     "name": "Agent Survey team"
@@ -52,6 +52,11 @@
       "default": 0,
       "min": 0,
       "max": 10
+    },
+    "agent_model_id": {
+      "type": "string",
+      "title": "Model id (optional)",
+      "description": "The model this agent runs on, e.g. claude-opus-5-5 or llama-3-8b. Sealed with each answer; a change expires the calibration pass."
     }
   }
 }

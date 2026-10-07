@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { x25519 } from '@noble/curves/ed25519.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { openEnvelope, openSealed, sealEnvelope } from '../src/envelope.js';
+import { isClientString, openEnvelope, openSealed, sealEnvelope } from '../src/envelope.js';
 
 const sk = x25519.utils.randomSecretKey();
 const pk = bytesToHex(x25519.getPublicKey(sk));
@@ -82,5 +82,10 @@ describe('envelope', () => {
       { sources, client: { name: 'agent-survey-mcp', version: '10.20.30', modelId: 'claude-opus-5-5-20261001-extended' } });
     expect(env.ct.length).toBeLessThanOrEqual(2000);
     expect(JSON.stringify({ ...env, receivedAtMs: Date.now() }).length).toBeLessThan(2400);
+  });
+
+  it('isClientString accepts what cleanMeta keeps and rejects the rest', () => {
+    for (const ok of ['claude-opus-5-5', 'llama-3-8b', 'org/model:v1+x', 'a b@c.d']) expect(isClientString(ok)).toBe(true);
+    for (const bad of ['', 'x'.repeat(65), 'bad<model>', 'tab	here', 7, undefined]) expect(isClientString(bad)).toBe(false);
   });
 });
