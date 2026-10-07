@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import { Transaction } from '@solana/web3.js';
-import { checkFundingTx } from '@as/chain';
+import { checkFundingTx, submitErrorMessage } from '@as/chain';
 import { campaignEscrowAddress, randomHex32, screenCampaign, screenWarnings, type CampaignDatumFields, type CampaignSpec } from '@as/shared';
 import { z } from 'zod';
 import { requireSession, type AuthedRequest } from './auth.js';
@@ -113,7 +113,7 @@ export function campaignRoutes(deps: Deps): Router {
     const check = checkFundingTx(signedTx, { programId: deps.chain.programId, datum: datumFor(c, deps.config.reportPublicKey) });
     if (!check.ok) throw new HttpError(422, check.reason, `funding transaction refused: ${check.reason}`);
     const txHash = await deps.chain.submitSignedTx(signedTx).catch((e: unknown) => {
-      throw new HttpError(422, 'SUBMIT_FAILED', `the network refused the transaction: ${String((e as Error)?.message ?? e).slice(0, 300)}`);
+      throw new HttpError(422, 'SUBMIT_FAILED', submitErrorMessage(e));
     });
     // pending_fund_tx keeps the tx's blockhash: once it expires without the tx landing, funding failed (lifecycle).
     await setState(deps, c.id, 'FUNDING_SUBMITTED', { fund_tx_hash: txHash, pending_fund_tx: Transaction.from(Buffer.from(signedTx, 'base64')).recentBlockhash, last_error: null });

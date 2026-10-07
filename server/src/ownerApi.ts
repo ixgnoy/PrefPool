@@ -1,6 +1,7 @@
 // server/src/ownerApi.ts — endpoints for the redesigned web app (FRONTEND_PRD Appendix A):
 // the seller's agent (status, guardrails, pause, activity), the buyer's campaign list and refund escape hatch,
 // and the dev-view trace. Wallet-session auth; nothing here ever returns answers, tokens or private keys.
+import { submitErrorMessage } from '@as/chain';
 import { Router, type Request } from 'express';
 import { ABSTAIN_REASONS, NEEDS_APPROVAL_REASON, type SettlementReport } from '@as/shared';
 import { z } from 'zod';
@@ -243,7 +244,7 @@ export function ownerRoutes(deps: Deps): Router {
     // refund_after). Settle can't run then (its window ends at refund_after), so nothing races the refund.
     if (!deps.chain.isRefundTx(signedTx, c.id, c.buyer_address)) throw new HttpError(422, 'NOT_A_REFUND', 'this transaction is not your refund of the campaign escrow');
     const txHash = await deps.chain.submitSignedTx(signedTx).catch((e: unknown) => {
-      throw new HttpError(422, 'SUBMIT_FAILED', `the network refused the transaction: ${String((e as Error)?.message ?? e).slice(0, 300)}`);
+      throw new HttpError(422, 'SUBMIT_FAILED', submitErrorMessage(e));
     });
     await deps.db.query(`update campaigns set state = 'REFUNDED', settlement_tx_hash = $2, updated_at = now() where id = $1 and state = any($3::text[])`,
       [c.id, txHash, REFUNDABLE]);

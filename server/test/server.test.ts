@@ -353,7 +353,7 @@ describe('funding errors from the chain builder', () => {
     const { body } = await request(app).post('/api/campaigns').set(auth).send(demoSpec(clock.now + 3_600_000));
     const b = await request(app).post(`/api/campaigns/${body.campaignId}/fund/build`).set(auth).send({}).expect(200);
     const res = await request(app).post(`/api/campaigns/${body.campaignId}/fund/submit`).set(auth).send({ signedTx: buyer.signTx(b.body.unsignedTx) }).expect(422);
-    expect(res.body).toMatchObject({ code: 'SUBMIT_FAILED', error: expect.stringContaining('Blockhash not found') });
+    expect(res.body).toMatchObject({ code: 'SUBMIT_FAILED', error: expect.stringMatching(/expired.*try again/) });
     expect((await request(app).get(`/api/campaigns/${body.campaignId}`)).body.state).toBe('AWAITING_FUNDING');
   });
 });
