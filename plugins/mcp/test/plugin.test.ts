@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import request from 'supertest';
-import { openEnvelope, transcriptKeyFromSignature, type CampaignDatumFields } from '@as/shared';
+import { openEnvelope, optionOrder, orderKey, transcriptKeyFromSignature, type Answers, type CampaignDatumFields, type Envelope } from '@as/shared';
 import { tick } from '../../../server/src/lifecycle.js';
 import { demoSpec, escrowFor, keys, listen, login, makeDeps, wallet } from '../../../server/test/helpers.js';
 import { createAgentSurveyServer } from '../src/tools.js';
@@ -14,6 +14,9 @@ import { agentWallet } from '../src/wallet.js';
 
 /** Removes the per-call untrusted-text boundaries (G2) so assertions can compare raw campaign text. */
 const stripMarks = (s: string) => s.replace(/<<\/?[0-9a-f]{12}>>/g, '');
+/** G3: submitted single_choice answers are positions in this agent's shown order; the sealed value is the canonical index. */
+const canonicalOf = (agent: string, campaignId: string, shown: Answers): Answers => Object.fromEntries(demoSpec(0).questions.map((q) =>
+  [q.id, q.options ? optionOrder(orderKey(agent, campaignId, q.id), q.options.length)[shown[q.id]!]! : shown[q.id]!]));
 
 async function world() {
   const env = await makeDeps(Date.now());
@@ -96,7 +99,7 @@ describe('agent-survey MCP plugin', () => {
     expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 4, q3: 1 } })).json.submitted).toBe(true);
     const { copies } = (await request(w.app).get('/api/agents/mine/answer-copies').set({ Authorization: `Bearer ${w.session}` })).body;
     expect(copies).toHaveLength(1);
-    expect(openEnvelope(ownerKey.privateKey, copies[0].envelope)).toEqual({ q1: 0, q2: 4, q3: 1 });
+    expect(openEnvelope(ownerKey.privateKey, copies[0].envelope)).toEqual(canonicalOf(w.owner.address, w.campaignId, { q1: 0, q2: 4, q3: 1 }));
     await w.srv.close();
   });
 
@@ -171,8 +174,32 @@ describe('agent-survey MCP plugin', () => {
     const again = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 4, q3: 1 } });
     expect(again.isError).toBe(true);
     const [row] = await w.deps.db.query<{ envelope: never }>(`select envelope from envelopes where campaign_id = $1`, [w.campaignId]);
-    expect(openEnvelope(keys.encSk, row!.envelope)).toEqual({ q1: 0, q2: 4, q3: 1 });
+    expect(openEnvelope(keys.encSk, row!.envelope)).toEqual(canonicalOf(w.owner.address, w.campaignId, { q1: 0, q2: 4, q3: 1 }));
     expect((row!.envelope as { respondentAddress: string }).respondentAddress).toBe(w.owner.address);
+    await w.srv.close();
+  });
+
+  it('shows options in a per-agent order and seals the canonical index', async () => {
+    const w = await world();
+    const ownerKey = transcriptKeyFromSignature('ef'.repeat(80));
+    await request(w.app).put('/api/agents/mine/transcript-key').set({ Authorization: `Bearer ${w.session}` }).send({ publicKey: ownerKey.publicKey }).expect(200);
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
+    const { json } = await call('evaluate_campaign', { campaignId: w.campaignId });
+    const shown: string[] = json.campaign.questions[0].options.map(stripMarks);
+    const canonical = demoSpec(0).questions[0]!.options!;
+    const order = optionOrder(orderKey(w.owner.address, w.campaignId, 'q1'), canonical.length);
+    expect(shown).toEqual(order.map((i) => canonical[i]));
+    expect((await call('list_campaigns')).json[0].questions[0].options.map(stripMarks)).toEqual(shown); // same order on every call
+    expect(json.campaign.questions[1].options).toBeUndefined(); // likert_5 untouched
+    const pos = shown.indexOf('Crypto wallet');
+    const shown3: string[] = json.campaign.questions[2].options.map(stripMarks);
+    const r = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: pos, q2: 3, q3: shown3.indexOf('Over $100') } });
+    expect(r.isError).toBe(false);
+    const [row] = await w.deps.db.query<{ envelope: Envelope }>(`select envelope from envelopes where campaign_id = $1`, [w.campaignId]);
+    expect(openEnvelope(keys.encSk, row!.envelope)).toEqual({ q1: 1, q2: 3, q3: 2 }); // canonical indexes of "Crypto wallet" and "Over $100"
+    const { copies } = (await request(w.app).get('/api/agents/mine/answer-copies').set({ Authorization: `Bearer ${w.session}` })).body;
+    expect(openEnvelope(ownerKey.privateKey, copies[0].envelope)).toEqual({ q1: 1, q2: 3, q3: 2 });
     await w.srv.close();
   });
 
