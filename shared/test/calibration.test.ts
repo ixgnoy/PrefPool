@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CALIBRATION_MIN_AGREEMENT, CALIBRATION_MIN_LIFT, UNCALIBRATED_REASON, calibrationGate, majorityAnswer, majorityShare, scoreRound, type CalibrationQuestion } from '../src/calibration.js';
+import { CALIBRATION_MAX_PROBES, CALIBRATION_MIN_ABSTAIN, CALIBRATION_MIN_AGREEMENT, CALIBRATION_MIN_LIFT, UNCALIBRATED_REASON, calibrationGate, majorityAnswer, majorityShare, scoreRound, type CalibrationQuestion } from '../src/calibration.js';
 
 const sc = (id: string, prior = [0.6, 0.3, 0.1]): CalibrationQuestion => ({ id, text: id, type: 'single_choice', options: ['a', 'b', 'c'], category: 'food', prior });
 const lk = (id: string): CalibrationQuestion => ({ id, text: id, type: 'likert_5', category: 'tech', prior: [0.1, 0.1, 0.2, 0.3, 0.3] });
@@ -42,6 +42,35 @@ describe('scoreRound', () => {
     const agentN = (n: number) => Object.fromEntries(ten.map((q, i) => [q.id, i < n ? 1 : 2]));
     expect(scoreRound(ten, agentN(7), own, maj).passed).toBe(true);   // 0.7 agreement, 0.2 lift
     expect(scoreRound(ten, agentN(6), own, maj).passed).toBe(false);  // 0.6
+  });
+  const perfectAgent = { a: 1, b: 2, c: 0, d: 5 };
+  it('probes: the agent must say unknown on questions the owner marked unknowable', () => {
+    const r = scoreRound(qs, { ...perfectAgent, [qs[0]!.id]: 'unknown' }, owner, majority, [qs[0]!.id]);
+    expect(r.abstainRate).toBe(1);
+    expect(r.passed).toBe(true);
+    const guessed = scoreRound(qs, perfectAgent, owner, majority, [qs[0]!.id]); // guessed right, but should not have known
+    expect(guessed.abstainRate).toBe(0);
+    expect(guessed.passed).toBe(false);
+  });
+  it('probes are left out of agreement and baseline; no probes means abstainRate null', () => {
+    expect([CALIBRATION_MIN_ABSTAIN, CALIBRATION_MAX_PROBES]).toEqual([0.5, 5]);
+    const r = scoreRound(qs, { ...perfectAgent, a: 'unknown' }, owner, majority, ['a']);
+    expect(r.agreement).toBe(1);
+    expect(r.baseline).toBeCloseTo((0 + 1 + 0.75) / 3);
+    expect(scoreRound(qs, perfectAgent, owner, majority).abstainRate).toBeNull();
+  });
+  it('passes at half the probes abstained, fails below', () => {
+    const half = scoreRound(qs, { ...perfectAgent, a: 'unknown' }, owner, majority, ['a', 'c']); // c guessed
+    expect(half.abstainRate).toBe(0.5);
+    expect(half.passed).toBe(true);
+    const third = scoreRound(qs, { ...perfectAgent, a: 'unknown' }, owner, majority, ['a', 'b', 'c']); // d alone still has lift
+    expect(third.abstainRate).toBeCloseTo(1 / 3);
+    expect(third.passed).toBe(false);
+  });
+  it('never passes when every question is a probe (nothing scored)', () => {
+    const r = scoreRound(qs, { a: 'unknown', b: 'unknown', c: 'unknown', d: 'unknown' }, owner, majority, ['a', 'b', 'c', 'd']);
+    expect(r.abstainRate).toBe(1);
+    expect(r.passed).toBe(false);
   });
 });
 

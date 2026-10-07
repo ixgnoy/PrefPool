@@ -36,13 +36,28 @@ export function majorityShare(q: Pick<CalibrationQuestion, 'type' | 'prior'>, co
 const match = (q: CalibrationQuestion, x: AgentAnswer, o: number) =>
   x === 'unknown' ? 0 : q.type === 'likert_5' ? 1 - Math.abs(x - o) / 4 : x === o ? 1 : 0;
 
-/** Agreement with the owner, versus what always giving the popular answer would have scored. */
-export function scoreRound(qs: CalibrationQuestion[], agent: Record<string, AgentAnswer>, owner: Record<string, number>, majority: Record<string, number>) {
-  const mean = (f: (q: CalibrationQuestion) => number) => qs.reduce((s, q) => s + f(q), 0) / qs.length;
+/** Probes: the agent passes only if it said "unknown" on at least this share of the questions its owner marked unknowable. */
+export const CALIBRATION_MIN_ABSTAIN = 0.5;
+/** At most this many probes per round, so most of the round is still scored for agreement. */
+export const CALIBRATION_MAX_PROBES = 5;
+
+/**
+ * Agreement with the owner, versus what always giving the popular answer would have scored, on the questions the owner
+ * says the agent could know. On the rest ("probes", `unknowable`) the agent must abstain. With nothing left to score
+ * (every question a probe), agreement is 0, so the round cannot pass.
+ */
+export function scoreRound(qs: CalibrationQuestion[], agent: Record<string, AgentAnswer>, owner: Record<string, number>, majority: Record<string, number>, unknowable: string[] = []) {
+  const probe = new Set(unknowable);
+  const probes = qs.filter((q) => probe.has(q.id));
+  const scored = qs.filter((q) => !probe.has(q.id));
+  const mean = (f: (q: CalibrationQuestion) => number) => (scored.length ? scored.reduce((s, q) => s + f(q), 0) / scored.length : 0);
   const agreement = mean((q) => match(q, agent[q.id] ?? 'unknown', owner[q.id]!));
   const baseline = mean((q) => match(q, majority[q.id]!, owner[q.id]!));
   const lift = agreement - baseline;
-  return { agreement, baseline, lift, passed: agreement >= CALIBRATION_MIN_AGREEMENT - EPS && lift >= CALIBRATION_MIN_LIFT - EPS };
+  const abstainRate = probes.length ? probes.filter((q) => (agent[q.id] ?? 'unknown') === 'unknown').length / probes.length : null;
+  const passed = scored.length > 0 && agreement >= CALIBRATION_MIN_AGREEMENT - EPS && lift >= CALIBRATION_MIN_LIFT - EPS
+    && (abstainRate === null || abstainRate >= CALIBRATION_MIN_ABSTAIN - EPS);
+  return { agreement, baseline, lift, abstainRate, passed };
 }
 
 /** Calibrated-only campaigns accept agents whose pass is still valid at `atMs` (the campaign deadline). */

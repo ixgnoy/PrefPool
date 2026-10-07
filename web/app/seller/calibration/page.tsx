@@ -10,6 +10,7 @@ import {
   type CalibrationQ, type CalibrationResult, type CalibrationStatus,
 } from '@/lib/api';
 import { useStore } from '@/lib/store';
+import { CALIBRATION_MAX_PROBES } from '@as/shared';
 
 const DAY = 86_400_000;
 /** What to paste into an agent that only acts when asked (Claude Code, Cursor, …). OpenClaw picks rounds up on its heartbeat. */
@@ -19,6 +20,10 @@ const LIKERT = ['1 · Not at all', '2', '3', '4', '5 · Very much'];
 const draftKey = (roundId: string) => `cf.calibration.${roundId}`;
 const loadDraft = (roundId: string): Record<string, number> => { try { return JSON.parse(sessionStorage.getItem(draftKey(roundId)) ?? '{}'); } catch { return {}; } };
 const saveDraft = (roundId: string, a: Record<string, number>) => { try { sessionStorage.setItem(draftKey(roundId), JSON.stringify(a)); } catch { /* storage blocked */ } };
+// Probes ("my agent couldn't know this") survive a refresh the same way.
+const probesKey = (roundId: string) => `cf.calibration.${roundId}.probes`;
+const loadProbes = (roundId: string): Set<string> => { try { return new Set(JSON.parse(sessionStorage.getItem(probesKey(roundId)) ?? '[]')); } catch { return new Set(); } };
+const saveProbes = (roundId: string, p: Set<string>) => { try { sessionStorage.setItem(probesKey(roundId), JSON.stringify([...p])); } catch { /* storage blocked */ } };
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const days = (ms: number) => Math.max(0, Math.ceil(ms / DAY));
 
@@ -27,7 +32,8 @@ export default function CalibrationPage() {
   const [status, setStatus] = useState<CalibrationStatus | null>(null);
   const [quiz, setQuiz] = useState<{ roundId: string; questions: CalibrationQ[]; deadline: number } | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [result, setResult] = useState<CalibrationResult | null>(null);
+  const [unknowable, setUnknowable] = useState<Set<string>>(new Set());
+  const [result, setResult] = useState<{ r: CalibrationResult; probes: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const token = session?.sessionToken;
@@ -48,19 +54,26 @@ export default function CalibrationPage() {
   const open = () => act(async () => {
     const r = status!.round!;
     const q = await openCalibration(token!, r.roundId);
-    setQuiz({ roundId: r.roundId, ...q }); setAnswers(loadDraft(r.roundId)); setResult(null);
+    setQuiz({ roundId: r.roundId, ...q }); setAnswers(loadDraft(r.roundId)); setUnknowable(loadProbes(r.roundId)); setResult(null);
   });
   const submit = () => act(async () => {
     try {
-      const { result: res } = await submitCalibration(token!, quiz!.roundId, answers);
-      setResult(res);
+      const probes = [...unknowable];
+      const { result: res } = await submitCalibration(token!, quiz!.roundId, answers, probes);
+      setResult({ r: res, probes: probes.length });
     } catch (e) {
       // Time ran out, or the round closed elsewhere: drop the stale quiz so "Calibrate now" comes back.
       if (!(e instanceof ApiError && (e.code === 'EXPIRED' || e.code === 'CLOSED'))) throw e;
       setError(e.code === 'EXPIRED' ? 'Time ran out for this round. Start a new one with Calibrate now.' : 'This round has already closed.');
     }
-    try { sessionStorage.removeItem(draftKey(quiz!.roundId)); } catch { /* storage blocked */ }
-    setQuiz(null); await refresh();
+    try { sessionStorage.removeItem(draftKey(quiz!.roundId)); sessionStorage.removeItem(probesKey(quiz!.roundId)); } catch { /* storage blocked */ }
+    setQuiz(null); setUnknowable(new Set()); await refresh();
+  });
+  const toggleProbe = (id: string) => setUnknowable((p) => {
+    const next = new Set(p);
+    if (next.has(id)) next.delete(id); else if (next.size < CALIBRATION_MAX_PROBES) next.add(id);
+    if (quiz) saveProbes(quiz.roundId, next);
+    return next;
   });
   const pick = (id: string, v: number) => setAnswers((a) => { const next = { ...a, [id]: v }; if (quiz) saveDraft(quiz.roundId, next); return next; });
 
@@ -94,7 +107,7 @@ export default function CalibrationPage() {
               ? <p className="text-sm">Valid for <b className="font-mono">{days(status.calibratedUntil! - Date.now())}</b> more days. A new round starts automatically when it runs out.</p>
               : <p className="text-sm text-muted">Pass a round to unlock campaigns that only accept calibrated agents.</p>}
             {status.last && (
-              <p className="text-[13px] text-muted">Last round: matched you on <b className="font-mono text-ink">{pct(status.last.agreement)}</b>, a typical person&apos;s answers would match <b className="font-mono text-ink">{pct(status.last.baseline)}</b> · {status.last.passed ? 'passed' : 'not passed'}</p>
+              <p className="text-[13px] text-muted">Last round: matched you on <b className="font-mono text-ink">{pct(status.last.agreement)}</b>, a typical person&apos;s answers would match <b className="font-mono text-ink">{pct(status.last.baseline)}</b> · {status.last.abstainRate !== null && <> · said &quot;unknown&quot; on <b className="font-mono text-ink">{pct(status.last.abstainRate)}</b> of what it couldn&apos;t know</>} · {status.last.passed ? 'passed' : 'not passed'}</p>
             )}
             {!status.round && !quiz && <Button className="self-start" variant={valid ? 'secondary' : 'primary'} onClick={start} disabled={busy}>Calibrate now</Button>}
           </Card>
@@ -105,7 +118,7 @@ export default function CalibrationPage() {
         </div>
 
         <div className="flex flex-col gap-5">
-          {result && <ResultCard r={result} />}
+          {result && <ResultCard r={result.r} probes={result.probes} />}
 
           {quiz ? (
             <Card className="flex flex-col gap-5 p-5">
@@ -113,7 +126,7 @@ export default function CalibrationPage() {
                 <h2 className="text-base font-bold">Answer for yourself</h2>
                 <Pill tone="warn"><Countdown to={quiz.deadline} /></Pill>
               </div>
-              <p className="text-[13px] text-muted">Don&apos;t ask your agent: this checks that it knows you. {Object.keys(answers).length} of {quiz.questions.length} answered.</p>
+              <p className="text-[13px] text-muted">Don&apos;t ask your agent: this checks that it knows you. {Object.keys(answers).length} of {quiz.questions.length} answered. Tick &quot;My agent couldn&apos;t know this&quot; on up to {CALIBRATION_MAX_PROBES} questions you never told it about ({unknowable.size} marked).</p>
               <ol className="flex flex-col gap-4">
                 {quiz.questions.map((q, i) => (
                   <li key={q.id} className="flex flex-col gap-2 border-t border-line pt-4 first:border-0 first:pt-0">
@@ -124,6 +137,11 @@ export default function CalibrationPage() {
                         return <ChoiceChip key={label} on={answers[q.id] === v} onClick={() => pick(q.id, v)}>{label}</ChoiceChip>;
                       })}
                     </div>
+                    <label className={`flex items-center gap-2 text-[13px] ${!unknowable.has(q.id) && unknowable.size >= CALIBRATION_MAX_PROBES ? 'text-muted opacity-60' : 'text-muted'}`}>
+                      <input type="checkbox" className="size-4" checked={unknowable.has(q.id)} onChange={() => toggleProbe(q.id)}
+                        disabled={!unknowable.has(q.id) && unknowable.size >= CALIBRATION_MAX_PROBES} />
+                      My agent couldn&apos;t know this
+                    </label>
                   </li>
                 ))}
               </ol>
@@ -154,6 +172,7 @@ export default function CalibrationPage() {
                 <li>Your agent answers 15 questions about you (food, habits, tech, travel…).</li>
                 <li>You answer the same questions here, within 10 minutes.</li>
                 <li>Your agent passes if it matches you on at least 70%, and by 20 points more than a typical person&apos;s answers would.</li>
+                <li>Mark up to {CALIBRATION_MAX_PROBES} questions your agent could not know; it passes only if it said &quot;unknown&quot; on at least half of them.</li>
               </ol>
             </Card>
           )}
@@ -164,13 +183,14 @@ export default function CalibrationPage() {
   );
 }
 
-function ResultCard({ r }: { r: CalibrationResult }) {
+function ResultCard({ r, probes }: { r: CalibrationResult; probes: number }) {
   return (
     <Card className="flex items-center gap-4 p-5">
       <FinTank pose={r.passed ? 'paid' : 'abstain'} label={r.passed ? 'Calibration passed' : 'Calibration not passed'} className="size-24" />
       <div className="flex flex-col gap-1">
         <h2 className="text-base font-bold">{r.passed ? 'Passed: your agent knows you' : 'Not passed this time'}</h2>
         <p className="text-sm">Your agent matched you on <b className="font-mono">{pct(r.agreement)}</b>. A typical person&apos;s answers would match <b className="font-mono">{pct(r.baseline)}</b>.</p>
+        {r.abstainRate !== null && <p className="text-sm">On <b className="font-mono">{probes}</b> question{probes === 1 ? '' : 's'} you said your agent couldn&apos;t know: it admitted it on <b className="font-mono">{pct(r.abstainRate)}</b>.</p>}
         {!r.passed && <p className="text-[13px] text-muted">Chat with your agent about yourself, then calibrate again.</p>}
       </div>
     </Card>

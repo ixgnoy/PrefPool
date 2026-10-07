@@ -52,7 +52,8 @@ export interface PersonhoodRequest {
 }
 export const personhoodRequest = (token: string) => post<PersonhoodRequest>('/personhood/request', {}, token);
 export interface CalibrationQ { id: string; text: string; type: 'single_choice' | 'likert_5'; options?: string[] }
-export interface CalibrationResult { agreement: number; baseline: number; lift: number; passed: boolean }
+/** abstainRate: share of the owner-marked probes where the agent said "unknown"; null when none were marked. */
+export interface CalibrationResult { agreement: number; baseline: number; lift: number; abstainRate: number | null; passed: boolean }
 export interface CalibrationStatus {
   calibratable: boolean; calibratedUntil: number | null;
   round: { roundId: string; state: 'CREATED' | 'AGENT_ANSWERED' | 'OWNER_ANSWERING'; createdAt: number; ownerDeadline: number | null } | null;
@@ -61,8 +62,8 @@ export interface CalibrationStatus {
 export const getCalibration = (token: string) => api<CalibrationStatus>('/agents/mine/calibration', { token });
 export const startCalibration = (token: string) => post<{ roundId: string }>('/agents/mine/calibration', {}, token);
 export const openCalibration = (token: string, id: string) => post<{ questions: CalibrationQ[]; deadline: number }>(`/agents/mine/calibration/${id}/open`, {}, token);
-export const submitCalibration = (token: string, id: string, answers: Record<string, number>) =>
-  post<{ result: CalibrationResult }>(`/agents/mine/calibration/${id}/answers`, { answers }, token);
+export const submitCalibration = (token: string, id: string, answers: Record<string, number>, unknowable: string[] = []) =>
+  post<{ result: CalibrationResult }>(`/agents/mine/calibration/${id}/answers`, { answers, unknowable }, token);
 export const personhoodVerify = (token: string, result: unknown) => post<{ personhood: { kind: 'world' } }>('/personhood/verify', result, token);
 export const getMyAgent = (token: string) => api<{ agent: MyAgent | null }>('/agents/mine', { token }).then((r) => r.agent);
 export const registerAgent = (token: string, kind: 'live' | 'plugin', policy?: OwnerPolicy) =>

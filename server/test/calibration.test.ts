@@ -98,6 +98,40 @@ describe('calibration rounds', () => {
     expect(mine.calibration.calibratedUntil).toBeGreaterThan(t.clock.now + 29 * DAY);
   });
 
+  it('probes: an agent that guesses on a question the owner marked unknowable fails', async () => {
+    const t = await setup();
+    const { round } = await pending(t);
+    const owner = await ownerAnswers(t, round.questions);
+    const ids = (round.questions as Q[]).map((q) => q.id);
+    const firstId = ids[0]!;
+    await request(t.app).post(`/api/agents/calibration/${round.roundId}/answers`).set(t.a).send({ answers: owner }).expect(204);
+    await request(t.app).post(`/api/agents/mine/calibration/${round.roundId}/open`).set(t.s).expect(200);
+    const send = (unknowable: unknown) => request(t.app).post(`/api/agents/mine/calibration/${round.roundId}/answers`).set(t.s).send({ answers: owner, unknowable });
+    expect((await send(['cb-999']).expect(422)).body.code).toBe('BAD_PROBES');
+    expect((await send(ids.slice(0, 6)).expect(422)).body.code).toBe('BAD_PROBES');
+    expect((await send([firstId, firstId]).expect(422)).body.code).toBe('BAD_PROBES');
+    const res = await send([firstId]).expect(200);
+    expect(res.body.result).toMatchObject({ agreement: 1, abstainRate: 0, passed: false });
+    const [r] = await t.deps.db.query<{ abstain_rate: string }>(`select abstain_rate from calibration_rounds`);
+    expect(Number(r!.abstain_rate)).toBe(0);
+    const last = (await request(t.app).get('/api/agents/mine/calibration').set(t.s).expect(200)).body.last;
+    expect(last).toMatchObject({ passed: false, abstainRate: 0 });
+    // the owner still answered every question: counts describe the population, probes included
+    expect(Number((await t.deps.db.query<{ n: string }>(`select sum(n) as n from calibration_counts`))[0]!.n)).toBe(15);
+  });
+
+  it('probes: an agent that says unknown where it could not know passes', async () => {
+    const t = await setup();
+    const { round } = await pending(t);
+    const owner = await ownerAnswers(t, round.questions);
+    const firstId = (round.questions as Q[])[0]!.id;
+    await request(t.app).post(`/api/agents/calibration/${round.roundId}/answers`).set(t.a).send({ answers: { ...owner, [firstId]: 'unknown' } }).expect(204);
+    await request(t.app).post(`/api/agents/mine/calibration/${round.roundId}/open`).set(t.s).expect(200);
+    const res = await request(t.app).post(`/api/agents/mine/calibration/${round.roundId}/answers`).set(t.s).send({ answers: owner, unknowable: [firstId] }).expect(200);
+    expect(res.body.result).toMatchObject({ agreement: 1, abstainRate: 1, passed: true });
+    expect((await request(t.app).get('/api/agents/mine/calibration').set(t.s).expect(200)).body.last.abstainRate).toBe(1);
+  });
+
   it('fails a generic agent that only gives popular answers', async () => {
     const t = await setup();
     const { round } = await pending(t);

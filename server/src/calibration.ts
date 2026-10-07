@@ -3,7 +3,7 @@
 // score. Agent answers are nulled after scoring; owner answers only ever bump per-option counts (the "typical person").
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { CALIBRATION_ROUND_SIZE, CONTESTED_MAX_SHARE, majorityAnswer, majorityShare, scoreRound, type AgentAnswer, type CalibrationQuestion } from '@as/shared';
+import { CALIBRATION_MAX_PROBES, CALIBRATION_ROUND_SIZE, CONTESTED_MAX_SHARE, majorityAnswer, majorityShare, scoreRound, type AgentAnswer, type CalibrationQuestion } from '@as/shared';
 import { z } from 'zod';
 import { requireAgent, requireSession, type AuthedRequest } from './auth.js';
 import { isUniqueViolation } from './db.js';
@@ -143,15 +143,16 @@ export function calibrationRoutes(deps: Deps): Router {
   r.get('/agents/mine/calibration', requireSession(deps), async (req: AuthedRequest, res) => {
     const a = await ownerAgent(req.address!);
     const [open] = await deps.db.query<RoundRow>(`select ${ROUND_COLS} from calibration_rounds where agent_id = $1 and state = any($2)`, [a.id, OPEN]);
-    const [last] = await deps.db.query<{ agreement: string; baseline: string; lift: string; passed: boolean; scored_ms: string }>(
-      `select agreement, baseline, lift, passed, extract(epoch from scored_at) * 1000 as scored_ms from calibration_rounds
+    const [last] = await deps.db.query<{ agreement: string; baseline: string; lift: string; abstain_rate: string | null; passed: boolean; scored_ms: string }>(
+      `select agreement, baseline, lift, abstain_rate, passed, extract(epoch from scored_at) * 1000 as scored_ms from calibration_rounds
         where agent_id = $1 and state = 'SCORED' order by scored_at desc limit 1`, [a.id]);
     res.json({
       calibratable: a.kind === 'plugin',
       calibratedUntil: a.calibrated_ms === null ? null : Number(a.calibrated_ms),
       round: open ? { roundId: open.id, state: open.state, createdAt: Number(open.created_ms),
         ownerDeadline: open.owner_opened_ms === null ? null : Number(open.owner_opened_ms) + OWNER_ANSWER_WINDOW_MS } : null,
-      last: last ? { agreement: Number(last.agreement), baseline: Number(last.baseline), lift: Number(last.lift), passed: last.passed, scoredAt: Number(last.scored_ms) } : null,
+      last: last ? { agreement: Number(last.agreement), baseline: Number(last.baseline), lift: Number(last.lift),
+        abstainRate: last.abstain_rate === null ? null : Number(last.abstain_rate), passed: last.passed, scoredAt: Number(last.scored_ms) } : null,
     });
   });
   r.post('/agents/mine/calibration', requireSession(deps), async (req: AuthedRequest, res) => {
@@ -179,21 +180,28 @@ export function calibrationRoutes(deps: Deps): Router {
       await deps.db.query(`update calibration_rounds set state = 'EXPIRED', agent_answers = null where id = $1 and state = 'OWNER_ANSWERING'`, [row.id]);
       throw new HttpError(409, 'EXPIRED', 'the 10-minute window has passed');
     }
-    const { answers } = z.object({ answers: z.record(z.string(), z.number()) }).parse(req.body);
+    const { answers, unknowable } = z.object({
+      answers: z.record(z.string(), z.number()),
+      unknowable: z.array(z.string()).default([]), // probes: questions the owner says the agent could not have known
+    }).parse(req.body);
     const qs = await questions(deps, row.question_ids);
     validate(qs, answers, false);
+    if (unknowable.length > CALIBRATION_MAX_PROBES || new Set(unknowable).size !== unknowable.length || !unknowable.every((id) => row.question_ids.includes(id)))
+      throw new HttpError(422, 'BAD_PROBES', `mark at most ${CALIBRATION_MAX_PROBES} distinct questions from this round as unknowable`);
     const counts = await deps.db.query<{ question_id: string; option: number; n: number }>(
       `select question_id, option, n from calibration_counts where question_id = any($1)`, [row.question_ids]);
     const majority = Object.fromEntries(qs.map((q) => {
       const c = Array.from({ length: q.type === 'likert_5' ? 5 : q.options!.length }, (_, i) => counts.find((x) => x.question_id === q.id && x.option === i)?.n ?? 0);
       return [q.id, majorityAnswer(q, c)];
     }));
-    const result = scoreRound(qs, row.agent_answers ?? {}, answers, majority);
+    const result = scoreRound(qs, row.agent_answers ?? {}, answers, majority, unknowable);
     const now = deps.now();
     const scored = await deps.db.query(
-      `update calibration_rounds set state = 'SCORED', agent_answers = null, agreement = $2, baseline = $3, lift = $4, passed = $5, scored_at = $6
-        where id = $1 and state = 'OWNER_ANSWERING' returning id`, [row.id, result.agreement, result.baseline, result.lift, result.passed, ts(now)]);
+      `update calibration_rounds set state = 'SCORED', agent_answers = null, agreement = $2, baseline = $3, lift = $4, passed = $5, scored_at = $6,
+        abstain_rate = $7 where id = $1 and state = 'OWNER_ANSWERING' returning id`,
+      [row.id, result.agreement, result.baseline, result.lift, result.passed, ts(now), result.abstainRate]);
     if (!scored.length) throw new HttpError(409, 'CLOSED', 'round already scored');
+    // Probes included: the owner still answered them, and counts describe the population, not the agent.
     for (const q of qs) {
       const option = q.type === 'likert_5' ? answers[q.id]! - 1 : answers[q.id]!; // likert 1..5 -> 0..4, like the prior
       await deps.db.query(`insert into calibration_counts (question_id, option, n) values ($1, $2, 1)
