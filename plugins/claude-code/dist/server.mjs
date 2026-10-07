@@ -72265,7 +72265,7 @@ function screenCampaign(spec, nowMs, maxResponsesCap = MAX_PAYEES) {
   if (BigInt(spec.rewardLamports) < MIN_REWARD_LAMPORTS) reasons.push("reward below 0.001 SOL");
   if (spec.maxResponses < 1 || spec.maxResponses > maxResponsesCap) reasons.push(`maxResponses must be 1..${maxResponsesCap}`);
   if (spec.minCohort < 1 || spec.minCohort > spec.maxResponses) reasons.push("minCohort must be 1..maxResponses");
-  if (spec.deadlineMs < nowMs + 6e4) reasons.push("deadline must be at least 1 minute ahead");
+  if (spec.deadlineMs < nowMs + 3e4) reasons.push("deadline must be at least 30 seconds ahead");
   return [...new Set(reasons)];
 }
 
@@ -72519,7 +72519,7 @@ function createAgentSurveyServer(opts) {
         options: external_exports.array(external_exports.string()).optional(),
         category: external_exports.string().optional()
       })).min(1).max(5),
-      deadlineMinutes: external_exports.number().int().min(2).max(7 * 24 * 60).default(10),
+      deadlineMinutes: external_exports.number().int().min(1).max(7 * 24 * 60).default(1),
       rewardSol: external_exports.number().min(1e-3).max(10).default(0.01),
       maxResponses: external_exports.number().int().min(1).max(20).default(20),
       minCohort: external_exports.number().int().min(1).max(20).default(10),

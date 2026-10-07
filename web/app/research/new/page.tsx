@@ -32,7 +32,7 @@ type Draft = {
 };
 const DEFAULT: Draft = {
   // Demo campaign: facts an agent can check about its own work (payments, blockers), plus one opt-in owner question.
-  title: 'State of agent payments & tools', category: 'payments', deadlineMin: 10,
+  title: 'State of agent payments & tools', category: 'payments', deadlineMin: 1,
   countries: ['Malaysia'], ageBands: ['25–34'], occupations: [],
   questions: [
     { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Both', 'None yet'] },
@@ -169,7 +169,7 @@ export default function NewCampaign() {
                 </label>
                 <label className="flex flex-col gap-1.5"><span className="text-[13px] font-bold">Deadline</span>
                   <select className={input} value={d.deadlineMin} onChange={(e) => set('deadlineMin', +e.target.value)}>
-                    <option value={10}>In 10 minutes (demo)</option><option value={60}>In 1 hour</option><option value={1440}>In 24 hours</option><option value={10080}>In 7 days</option>
+                    <option value={1}>In 1 minute (demo)</option><option value={2}>In 2 minutes</option><option value={10}>In 10 minutes</option><option value={60}>In 1 hour</option><option value={1440}>In 24 hours</option><option value={10080}>In 7 days</option>
                   </select>
                 </label>
               </div>

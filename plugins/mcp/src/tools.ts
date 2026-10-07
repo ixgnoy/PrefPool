@@ -190,7 +190,7 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       title: z.string(), category: z.string(),
       questions: z.array(z.object({ id: z.string(), type: z.enum(['single_choice', 'likert_5']), text: z.string(),
         options: z.array(z.string()).optional(), category: z.string().optional() })).min(1).max(5),
-      deadlineMinutes: z.number().int().min(2).max(7 * 24 * 60).default(10),
+      deadlineMinutes: z.number().int().min(1).max(7 * 24 * 60).default(1),
       rewardSol: z.number().min(0.001).max(10).default(0.01),
       maxResponses: z.number().int().min(1).max(20).default(20),
       minCohort: z.number().int().min(1).max(20).default(10),
