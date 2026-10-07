@@ -7,6 +7,7 @@ import { calibrationGate, evaluatePolicy, matchesAudience, personhoodGate, sealE
 import { audienceOf } from '@/lib/audience';
 import { api, getActivity, type CampaignView } from '@/lib/api';
 import { useStore } from '@/lib/store';
+import { webAgentApprovalGate } from '@/lib/webAgent';
 
 type AgentCampaign = Pick<CampaignView, 'campaignId' | 'title' | 'category' | 'questions' | 'rewardLamports' | 'deadlineMs'> & { envelopePublicKey: string; audience?: Record<string, string[]>; verifiedHumansOnly?: boolean; calibratedAgentsOnly?: boolean };
 const POLL_MS = 5_000;
@@ -32,7 +33,9 @@ export function WebAgentRunner() {
         const ph = personhoodGate(c, !!agent?.personhood);
         const gate = ph.ok ? calibrationGate(c, agent?.calibration?.calibratedUntil ?? null, c.deadlineMs) : ph;
         const policyVerdict = gate.ok ? evaluatePolicy(rules, c, answeredToday) : gate;
-        const verdict = policyVerdict.ok && matchProfile ? matchesAudience(audienceOf(profile), c.audience ?? {}) : policyVerdict;
+        const audienceVerdict = policyVerdict.ok && matchProfile ? matchesAudience(audienceOf(profile), c.audience ?? {}) : policyVerdict;
+        // No chat and no local hold queue here: if the owner wants to approve first, skip rather than answer silently.
+        const verdict = audienceVerdict.ok ? webAgentApprovalGate(rules, c) : audienceVerdict;
         if (!verdict.ok) {
           await api(`/agents/campaigns/${c.campaignId}/decision`, { method: 'POST', token: liveToken, body: JSON.stringify({ kind: 'abstain', reason: verdict.reason }) }).catch(() => {});
           continue;

@@ -90,6 +90,13 @@ export const getAnswerCopies = (token: string) => api<{ transcriptPublicKey: str
 export const setTranscriptPublicKey = (token: string, publicKey: string) =>
   api<{ ok: true }>('/agents/mine/transcript-key', { method: 'PUT', body: JSON.stringify({ publicKey }), token });
 
+// ---- approval queue (policy approve_all) ----------------------------------------------------------------------
+/** An answer the owner's plugin holds locally until the owner decides. `envelope` is the owner's copy (transcript key). */
+export interface PendingApproval { campaignId: string; title: string; category: string; questions: CampaignSpec['questions']; envelope: Envelope; requestedAtMs: number; deadlineMs: number }
+export const getApprovals = (token: string) => api<{ transcriptPublicKey: string | null; pending: PendingApproval[] }>('/agents/mine/approvals', { token });
+export const decideApproval = (token: string, campaignId: string, decision: 'approve' | 'reject') =>
+  api<void>(`/agents/mine/approvals/${encodeURIComponent(campaignId)}`, { method: 'POST', token, body: JSON.stringify({ decision }) });
+
 // ---- buyer analytics -----------------------------------------------------------------------------------------
 export interface BuyerAnalytics {
   campaigns: number; funded: number; byState: Record<string, number>;

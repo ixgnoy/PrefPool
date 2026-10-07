@@ -88,7 +88,7 @@ export const bucketOf = (reason: string | null): AbstainReason =>
 export type PreviewCampaign = Pick<CampaignSpec, 'category' | 'questions' | 'rewardLamports'>;
 export type Decision = { kind: 'answer' } | { kind: 'abstain'; reason: AbstainReason; text: string };
 
-/** The shared policy check. The agent acts on its own: it answers or abstains, it never waits for the owner. */
+/** The shared policy check (the rules only). The approval mode decides separately whether an answer waits for the owner. */
 export function evaluatePolicy(p: OwnerPolicy, c: PreviewCampaign, todayCount = 0): Decision {
   const r = sharedEvaluate(p, c, todayCount);
   return r.ok ? { kind: 'answer' } : { kind: 'abstain', reason: bucketOf(r.reason), text: r.reason };

@@ -3,46 +3,31 @@
 // with a wallet signature over a fixed message; the browser derives the transcript key from it and opens the sealed
 // copies locally. The server, the buyer and CRE's report never see these per-person answers.
 import { useEffect, useMemo, useState } from 'react';
-import { openSealed, transcriptKeyFromSignature, transcriptKeyMessage, utf8ToBytes, bytesToHex, type AnswerSource, type Answers, type Question } from '@as/shared';
+import { openSealed, transcriptKeyMessage, type AnswerSource, type Answers, type Question } from '@as/shared';
 import { solOf } from '@/lib/campaign';
 import { Fin } from '@/components/Fin';
 import { Button, Card, EmptyState, Pill, TxLink, cx } from '@/components/ui';
-import { getAnswerCopies, setTranscriptPublicKey, type AnswerCopy } from '@/lib/api';
+import { getAnswerCopies, type AnswerCopy } from '@/lib/api';
 import { useActivity } from '@/lib/useActivity';
 import { categoryLabel } from '@/lib/policy';
 import { useStore } from '@/lib/store';
+import { useTranscriptKey } from '@/lib/useTranscriptKey';
 
-const answerLabel = (q: Question, v: number | undefined) =>
+/** One answer as the owner reads it. single_choice values are canonical option indexes. */
+export const answerLabel = (q: Question, v: number | undefined) =>
   v === undefined ? '-' : q.type === 'likert_5' ? `${v} / 5` : (q.options?.[v] ?? `option ${v}`);
 
 export function MyAnswers() {
-  const { session, agent, ensureWallet, transcriptKey, setTranscriptKey } = useStore();
+  const { session, agent } = useStore();
   const { items, totals, loading } = useActivity();
   const [copies, setCopies] = useState<AnswerCopy[] | null>(null);
   const [serverKey, setServerKey] = useState<string | null | undefined>(undefined);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { transcriptKey, unlock, busy, error, setError } = useTranscriptKey(serverKey);
 
   useEffect(() => {
     if (!session) return;
     getAnswerCopies(session.sessionToken).then((r) => { setCopies(r.copies); setServerKey(r.transcriptPublicKey); }).catch((e: Error) => setError(e.message));
   }, [session, transcriptKey]);
-
-  async function unlock() {
-    if (!session) return;
-    setBusy(true); setError(null);
-    try {
-      const w = await ensureWallet();
-      // signMessage, not a transaction: ed25519 is deterministic, so the same wallet and message always yield the same key.
-      const sig = await w.signMessage(utf8ToBytes(transcriptKeyMessage(session.address)));
-      const key = transcriptKeyFromSignature(bytesToHex(sig));
-      if (serverKey && serverKey !== key.publicKey) throw new Error('This wallet produces a different key than the one your agent seals to. Use the wallet you first unlocked with.');
-      if (!serverKey) await setTranscriptPublicKey(session.sessionToken, key.publicKey);
-      setTranscriptKey(key.privateKey);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'The wallet declined to sign.');
-    } finally { setBusy(false); }
-  }
 
   const opened = useMemo(() => (copies ?? []).map((c) => {
     const none = { c, answers: null as Answers | null, sources: null as Record<string, AnswerSource> | null };

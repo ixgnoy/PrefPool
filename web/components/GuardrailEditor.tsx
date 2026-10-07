@@ -2,7 +2,6 @@
 import { Card, Stepper, cx } from './ui';
 import { Fin } from './Fin';
 import { Lock as LockIcon } from 'pixelarticons/react/Lock';
-import { Robot } from 'pixelarticons/react/Robot';
 import { fmtSol } from '@/lib/campaign';
 import {
   CATEGORIES, describe, evaluatePolicy, statusOf, withStatus,
@@ -77,12 +76,21 @@ export function GuardrailEditor({ value, onChange, preview = true }: { value: Ow
           </Card>
         </div>
 
-        <Card id="approval" className="flex scroll-mt-24 gap-3 bg-blue-soft p-5">
-          <Robot aria-hidden width={20} height={20} className="mt-0.5 shrink-0 text-blue" />
-          <div className="flex flex-col gap-1">
-            <h3 className="font-bold">Your agent acts on its own</h3>
-            <p className="text-[13px] leading-relaxed">It answers or skips campaigns without asking you, using only these rules, and only from what it knows about you. Pause it anytime from the dashboard, and see every answer on the Sold page.</p>
+        <Card id="approval" className="flex scroll-mt-24 flex-col gap-3 p-5">
+          <h3 className="font-bold">Before answering</h3>
+          <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Before answering">
+            {([
+              ['auto', 'Acts on its own', 'Answers or skips using only these rules.'],
+              ['approve_sensitive', 'Asks me about personal topics', 'Spending and personal-life campaigns wait for your OK in the chat.'],
+              ['approve_all', 'Every answer waits', 'Each sealed answer waits on the Activity page until you approve it.'],
+            ] as const).map(([mode, title, sub]) => (
+              <button key={mode} type="button" role="radio" aria-checked={value.approvalMode === mode} onClick={() => onChange({ ...value, approvalMode: mode })}
+                className={cx('flex flex-col gap-1 rounded-2xl border-2 p-3 text-left transition', value.approvalMode === mode ? 'border-ok bg-ok-soft' : 'border-line bg-surface hover:border-muted')}>
+                <span className="font-semibold">{title}</span><span className="text-[13px] text-muted">{sub}</span>
+              </button>
+            ))}
           </div>
+          <p className="text-[13px] text-muted">Claude Code and OpenClaw agents keep their rules on your machine: tell your agent &ldquo;set my PrefPool approval mode to {value.approvalMode}&rdquo; so it matches.</p>
         </Card>
       </div>
 

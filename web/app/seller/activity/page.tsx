@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { ActivityTable } from '@/components/ActivityTable';
+import { ApprovalQueue } from '@/components/ApprovalQueue';
 import { MyAnswers } from '@/components/MyAnswers';
 import { Card, EmptyState, PageTitle, Segmented, cx } from '@/components/ui';
 import { useActivity } from '@/lib/useActivity';
@@ -31,7 +32,8 @@ function Activity() {
             ))}
           </div>
         } />
-      {tab === 'history' ? <History /> : <MyAnswers />}
+      {/* The plugin links owners to /seller/activity#approvals (policy approve_all). */}
+      {tab === 'history' ? <div className="flex flex-col gap-6"><ApprovalQueue /><History /></div> : <MyAnswers />}
     </>
   );
 }
