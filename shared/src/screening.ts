@@ -21,12 +21,16 @@ const IDENTIFYING = [
   /\b(?:bank|card|account|wallet)\s+(?:number|address)\b(?!\s+(?:formats?|types?|styles?|standards?|validation)\b)/i,
   // Accounts and addresses. "Do you use a crypto wallet?" and "public key authentication" pass; the account itself does not.
   /\b(?:solana|crypto|phantom|solflare)\s+(?:account|address|pubkey)\b|\b(?:your|owner['\u2019]?s|their|its)\s+(?:\w+\s+){0,2}pub(?:lic\s*)?keys?\b|\bpub(?:lic\s*)?keys?\s+of\s+(?:your|the|their)\b/i,
-  /\bwhat(?:['\u2019]s|\s+is)\s+(?:your|the|their)\s+(?:owner['\u2019]?s\s+)?(?!(?:preferred|favou?rite)\b)(?:\w+\s+){0,2}(?:wallet|account|address|pub(?:lic\s*)?key)\b(?!\s+(?:apps?|providers?|types?|software|formats?|setup|brand|extensions?|you|that|which)\b)/i,
+  // "What is your (Solana) wallet?", "Which of these is your wallet?": wallet/account only when it ends the clause, so
+  // "What is your account tier?" and "Which is your main wallet app?" pass. Address and public key always count.
+  /\b(?:what(?:['\u2019]s|\s+is)|which(?:\s+(?:of\s+these|of\s+them|one))?\s+is|is\s+this)\s+(?:your|the|their)\s+(?:owner['\u2019]?s\s+)?(?!(?:preferred|favou?rite)\b)(?:\w+\s+){0,2}?(?:(?:wallet|account)(?=\s*(?:[?.!,;:]|$))|(?:address(?:es)?|pub(?:lic\s*)?keys?)\b(?!\s+(?:formats?|types?|standards?|book)\b))/i,
   /\bis\s+(?:your|the|their)\s+(?:owner['\u2019]?s\s+)?(?:\w+\s+){0,2}(?:wallet|account|address|pub(?:lic\s*)?key)\s+(?:0x|(?=[1-9A-HJ-NP-Za-km-z]{4,})[1-9A-HJ-NP-Za-km-z]*\d|[1-9A-HJ-NP-Za-km-z]{2,}(?:\.{3}|\u2026))/i,
   // "... wallet starts with", only when adjacent: "Does your account setup start with email verification?" passes.
-  /\b(?:wallets?|address(?:es)?|accounts?|keys?|pubkeys?)\s+(?:starts?|begins?|ends?)\s+with\b|\b(?:first|last)\s+(?:\w+\s+)?(?:character|letter|digit)s?\s+of\s+(?:your|the)\b/i,
+  /\b(?:wallets?|address(?:es)?|accounts?|keys?|pubkeys?)\s+(?:(?:usually|always|normally|still|really|actually)\s+)?(?:starts?|begins?|ends?)\s+with\b|\b(?:first|last)\s+(?:\w+\s+)?(?:character|letter|digit)s?\s+of\s+(?:your|the)\b/i,
   // Address-shaped strings: base58 (Solana), 0x EVM, 64-char hex. Case-sensitive.
   /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b|\b0x[0-9a-fA-F]{40,}\b|\b[0-9a-fA-F]{64}\b/,
+  // A shortened address as a whole option: "7xKX...AsU", "9WzD\u2026AWWM" (needs a digit, so "Wait...ok" passes).
+  /^(?=[^\n]*\d)[1-9A-HJ-NP-Za-km-z]{3,8}(?:\.{2,}|\u2026)[1-9A-HJ-NP-Za-km-z]{2,8}$/,
   /\b(?:zip|postal)\s*code\b|\bpostcode\b/i,
 ];
 const INJECTION = [/ignore (all |any )?(previous|prior) instructions/i, /system prompt/i, /you are now/i];

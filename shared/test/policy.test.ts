@@ -94,6 +94,28 @@ describe('screenCampaign', () => {
     expect(screenCampaign(ask('Which frameworks do you use?', ['Internationalization frameworks', 'Supercalifragilisticexpialidocious', 'Other']), now)).toEqual([]);
     expect(screenCampaign(ask('Which do you use?', ['Characterizationsandinternationalizationsframeworks', 'Other', 'Not sure']), now)).toEqual([]);
   });
+  it('rejects account and address asks found in the second review (G4b)', () => {
+    const ask = (text: string, options = ['Yes', 'No', 'Not sure']) => ({ ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text, options }] });
+    const id = 'identifying question: q1';
+    expect(screenCampaign(ask("Which is your owner's wallet?", ['7xKX...AsU', '9WzD\u2026AWWM', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('Which one?', ['7xKX...AsU', '9WzD\u2026AWWM', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('What is the address you receive payouts at?'), now)).toContain(id);
+    expect(screenCampaign(ask('Which of these is your wallet?'), now)).toContain(id);
+    expect(screenCampaign(ask('What is your wallet?'), now)).toContain(id);
+    expect(screenCampaign(ask('What is your Solana wallet?'), now)).toContain(id);
+    expect(screenCampaign(ask("What does your owner's wallet address begin with?"), now)).toContain(id);
+    expect(screenCampaign(ask('Which letter does your wallet start with?'), now)).toContain(id);
+  });
+  it('passes wallet products, account plans and "start with" workflows (G4b second review)', () => {
+    const ask = (text: string, options = ['Yes', 'No', 'Not sure']) => ({ ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text, options }] });
+    for (const text of [
+      'Which is your favourite wallet app?', 'Which is your main wallet app?', 'What is your account tier?',
+      'What is your account plan with your LLM provider?', "What is your wallet's main use?", 'What is your wallet app?',
+      'Does your workflow begin with a wallet connection?', "Does your owner's day start with checking their wallet?",
+      'What is your preferred wallet?', 'Does your account setup start with email verification?',
+    ]) expect(screenCampaign(ask(text), now)).toEqual([]);
+    expect(screenCampaign(ask('Which do you say?', ['Wait...ok', 'Not sure', 'Other']), now)).toEqual([]);
+  });
   it('rejects questions about credentials (keys, passwords, how secrets are stored)', () => {
     expect(screenCampaign({ ...spec, category: 'credentials' }, now)).toContain('sensitive category: credentials');
   });
