@@ -1,7 +1,7 @@
 // plugins/mcp/src/tools.ts
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  answersValid, calibrationGate, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, screenCampaign, sealEnvelope,
+  answersValid, approvalNeeded, calibrationGate, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, screenCampaign, sealEnvelope,
   type CampaignSpec,
 } from '@as/shared';
 import { z } from 'zod';
@@ -90,16 +90,18 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   server.registerTool('set_policy', {
     description: 'Set the owner policy (allowed/blocked categories, minimum reward, daily limit) and, optionally, the owner profile '
       + '(country ISO code e.g. "MY", age band e.g. "25-34", occupation) with matchAudience to abstain from campaigns targeting someone else. '
+      + 'approvalMode: auto | approve_sensitive (owner-facing campaigns wait for the owner\'s OK in chat) | approve_all (every answer waits in the web queue). '
       + 'Ask the owner before changing it.',
     inputSchema: {
       allowedCategories: z.array(z.string()), blockedCategories: z.array(z.string()),
       minimumRewardSol: z.number().nonnegative(), dailyLimit: z.number().int().positive(),
       profile: z.object({ country: z.string().optional(), ageBand: z.string().optional(), occupationGroup: z.string().optional() }).optional(),
       matchAudience: z.boolean().optional(),
+      approvalMode: z.enum(['auto', 'approve_sensitive', 'approve_all']).default('auto'),
     },
   }, async ({ profile, matchAudience, ...p }) => {
     const s = store.load();
-    store.save({ ...s, policy: { ...p, approvalMode: 'auto' }, profile: profile ?? s.profile, matchAudience: matchAudience ?? s.matchAudience ?? false });
+    store.save({ ...s, policy: p, profile: profile ?? s.profile, matchAudience: matchAudience ?? s.matchAudience ?? false });
     return text('Policy saved locally.');
   });
 
@@ -127,8 +129,8 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
 
   server.registerTool('submit_answer', {
     description: 'Answer a campaign for the owner. Answers are option indexes (single_choice, 0-based) or 1..5 (likert_5). Encrypted on this machine before sending.',
-    inputSchema: { campaignId: z.string().regex(/^[0-9a-f]{64}$/), answers: z.record(z.string(), z.number().int()) },
-  }, async ({ campaignId, answers }) => {
+    inputSchema: { campaignId: z.string().regex(/^[0-9a-f]{64}$/), answers: z.record(z.string(), z.number().int()), ownerApproved: z.boolean().optional() },
+  }, async ({ campaignId, answers, ownerApproved }) => {
     const missing = needToken(); if (missing) return missing;
     const c = await findCampaign(campaignId);
     const s = store.load();
@@ -138,6 +140,11 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       : `Refused: this campaign only accepts verified humans. Verify with World ID at ${opts.webUrl}/seller/agent#personhood`);
     const verdict = ownerVerdict(s, c); // enforced in code, not by the model
     if (!verdict.ok) return fail(`Refused by owner policy: ${verdict.reason}`);
+    const need = approvalNeeded(s.policy ?? DEFAULT_POLICY, c);
+    if (need === 'chat' && !ownerApproved) {
+      return fail('This campaign asks about your owner (spending or personal life) and their policy requires their OK first. '
+        + 'Ask the owner; only after they agree, call submit_answer again with ownerApproved: true.');
+    }
     if (!answersValid(c.questions, answers)) return fail('Answers must cover every question with a listed option (0-based index) or 1..5.');
     const me = (await api('/agents/me', { headers: agentHeaders() })) as { address: string; transcriptPublicKey?: string | null };
     const envelope = sealEnvelope(c.envelopePublicKey, campaignId, me.address, answers);

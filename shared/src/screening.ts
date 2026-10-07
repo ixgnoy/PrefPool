@@ -1,9 +1,8 @@
 // shared/src/screening.ts
+import { SENSITIVE_CATEGORIES } from './categories';
 import { MAX_PAYEES } from './settlePayload';
 import type { CampaignSpec } from './types';
 
-/** Never askable: personal-sensitive topics, and `credentials` (keys, passwords, how an agent stores secrets). */
-export const SENSITIVE_CATEGORIES = ['health', 'religion', 'ethnicity', 'politics', 'sexual_orientation', 'credentials'];
 const IDENTIFYING = [
   /\b(home|exact|street|residential)\s+address\b/i,
   /\bwhere\s+(do\s+)?you\s+live\b/i,

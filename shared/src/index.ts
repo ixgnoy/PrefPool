@@ -1,4 +1,5 @@
 export * from './types';
+export * from './categories';
 export * from './crypto';
 export * from './envelope';
 export * from './escrowAccount';

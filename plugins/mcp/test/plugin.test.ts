@@ -157,6 +157,19 @@ describe('agent-survey MCP plugin', () => {
     await w.srv.close();
   });
 
+  it('approve_sensitive refuses an owner-facing answer until ownerApproved is passed', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5, approvalMode: 'approve_sensitive' });
+    expect((await call('get_policy')).json.approvalMode).toBe('approve_sensitive');
+    const refused = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toMatch(/ownerApproved/);
+    const ok = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true });
+    expect(ok.isError).toBe(false);
+    await w.srv.close();
+  });
+
   it('an agent wallet creates its own campaign and funds it against the real server (sign-in, build, local check + sign, submit)', async () => {
     const env = await makeDeps(Date.now());
     const srv = await listen(env.app, env.deps, env.relayRef);

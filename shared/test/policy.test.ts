@@ -1,6 +1,6 @@
 // shared/test/policy.test.ts
 import { describe, expect, it } from 'vitest';
-import { evaluatePolicy } from '../src/policy.js';
+import { approvalNeeded, evaluatePolicy } from '../src/policy.js';
 import { screenCampaign } from '../src/screening.js';
 import { syntheticAnswers } from '../src/answers.js';
 import type { CampaignSpec, OwnerPolicy } from '../src/types.js';
@@ -64,5 +64,19 @@ describe('syntheticAnswers', () => {
     expect(a.q2).toBeGreaterThanOrEqual(1);
     expect(a.q2).toBeLessThanOrEqual(5);
     expect(a.q3).toBeLessThan(3);
+  });
+});
+
+describe('approvalNeeded', () => {
+  const agentOnly = { category: 'payments', questions: [{ id: 'q1', type: 'likert_5' as const, text: 'x (1 = never, 5 = always)' }] };
+  it('auto never asks', () => {
+    expect(approvalNeeded({ approvalMode: 'auto' }, spec)).toBe('none');
+  });
+  it('approve_sensitive asks in chat only when a question is about the owner', () => {
+    expect(approvalNeeded({ approvalMode: 'approve_sensitive' }, spec)).toBe('chat'); // q3 is spending
+    expect(approvalNeeded({ approvalMode: 'approve_sensitive' }, agentOnly)).toBe('none');
+  });
+  it('approve_all always goes to the web queue', () => {
+    expect(approvalNeeded({ approvalMode: 'approve_all' }, agentOnly)).toBe('web');
   });
 });
