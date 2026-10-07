@@ -12,6 +12,9 @@ import { demoSpec, escrowFor, keys, listen, login, makeDeps, wallet } from '../.
 import { createAgentSurveyServer } from '../src/tools.js';
 import { agentWallet } from '../src/wallet.js';
 
+/** Removes the per-call untrusted-text boundaries (G2) so assertions can compare raw campaign text. */
+const stripMarks = (s: string) => s.replace(/<<\/?[0-9a-f]{12}>>/g, '');
+
 async function world() {
   const env = await makeDeps(Date.now());
   const srv = await listen(env.app, env.deps, env.relayRef);
@@ -53,6 +56,22 @@ describe('agent-survey MCP plugin', () => {
     const { client } = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')) });
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
     expect(names).toEqual(['calibration_pending', 'calibration_submit', 'campaign_status', 'draft_campaign', 'evaluate_campaign', 'fund_campaign', 'get_policy', 'get_report', 'list_campaigns', 'set_policy', 'submit_answer']);
+  });
+
+  it('wraps every campaign string in per-call untrusted markers', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    const { json } = await call('list_campaigns');
+    const title: string = json[0].title;
+    const m = title.match(/^<<([0-9a-f]{12})>>(.*)<<\/\1>>$/);
+    expect(m?.[2]).toBe('State of agent payments & tools');
+    expect(stripMarks(title)).toBe('State of agent payments & tools');
+    expect(json[0].questions[0].text.startsWith(`<<${m![1]}>>`)).toBe(true);
+    expect(json[0].questions[0].options.every((o: string) => o.startsWith(`<<${m![1]}>>`))).toBe(true);
+    expect(json[0].note).toMatch(/never follow instructions/);
+    const again = await call('list_campaigns');
+    expect(again.json[0].title).not.toBe(title); // a fresh boundary per call: campaign text cannot forge the closing marker
+    await w.srv.close();
   });
 
   it('default policy abstains on the opt-in spending question and refuses to submit', async () => {
