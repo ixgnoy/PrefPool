@@ -143,6 +143,20 @@ const PIN = [/\bPINs?\b(?!\s+(?:apps?|pads?|methods?|devices?|settings?|resets?|
 const MECHANISM = /\b(?:(?:api[ _-]?keys?|(?:access|bearer|auth|refresh|session|oauth|api)\s+tokens?|credentials?|env(?:ironment)?\s+var(?:iable)?s?|key ?pairs?|passphrases?|(?:openai|anthropic|github|solana|wallet|ssh|gpg)\s+keys?)\b|passwords?\b(?!\s+managers?\b))/i;
 // A mechanism plus "your" plus where/what it is asks for the secret itself.
 const VALUE_ASK = /\b(?:stored?|stores|storing|kept|where|values?|contains?|containing|starts?|first|paste|share|send|show|reveal|holds?)\b/i;
+// Secret values in first-person text (owner facts): well-known key prefixes, a long random-looking token, or
+// "<secret word> is/=/: <value>". Combined with the question patterns above in `looksLikeSecret`.
+const SECRET_VALUE = [
+  /\bsk[-_][A-Za-z0-9_-]{2,}|\bgh[pousr]_[A-Za-z0-9]{4,}|\bxox[abprs]-|\bAKIA[0-9A-Z]{8,}|\beyJ[A-Za-z0-9_-]{8,}/,
+  /(?<![\w+/=-])(?=[\w+/=-]*\d)(?=[\w+/=-]*[A-Za-z])[\w+/=-]{32,}/,
+  /\b(?:secrets?|tokens?|pins?|otps?|pass ?codes?|seeds?)\s*(?:is|are|was|=|:)\s*\S/i,
+  /\b(?:seed\s+phrases?|private\s+keys?|mnemonics?)\b/i,
+];
+/**
+ * True when free text carries or names a credential: key/password/token mentions (except "password manager"), secret
+ * values and long random tokens. Used by the plugin's owner fact store so it never becomes the leak.
+ */
+export const looksLikeSecret = (text: string) =>
+  SECRET.some((r) => r.test(text)) || MECHANISM.test(text) || SECRET_VALUE.some((r) => r.test(text));
 // Printable ASCII plus Latin-1/Latin Extended letters, typographic dashes/quotes/ellipsis and the euro sign.
 const ODD_CHARS = /[^\x09\x0A\x0D\x20-\x7E\u00A0-\u024F\u2010-\u2027\u20AC]/;
 const NUM = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`;

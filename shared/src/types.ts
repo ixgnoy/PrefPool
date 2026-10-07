@@ -14,6 +14,9 @@ export interface Question {
   options?: string[];
   category?: string;
 }
+/** Where an answer came from: checked = the agent verified it in its own setup; owner_told = a stored owner fact; inferred = anything else. */
+export const ANSWER_SOURCES = ['checked', 'owner_told', 'inferred'] as const;
+export type AnswerSource = (typeof ANSWER_SOURCES)[number];
 export interface CampaignSpec {
   title: string;
   category: string;

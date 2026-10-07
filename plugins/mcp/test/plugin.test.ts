@@ -58,7 +58,7 @@ describe('agent-survey MCP plugin', () => {
   it('exposes respondent and researcher tools', async () => {
     const { client } = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')) });
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(['abstain_campaign', 'calibration_pending', 'calibration_submit', 'campaign_status', 'draft_campaign', 'evaluate_campaign', 'fund_campaign', 'get_policy', 'get_report', 'list_campaigns', 'set_policy', 'submit_answer']);
+    expect(names).toEqual(['abstain_campaign', 'calibration_pending', 'calibration_submit', 'campaign_status', 'draft_campaign', 'evaluate_campaign', 'forget_owner_fact', 'fund_campaign', 'get_policy', 'get_report', 'list_campaigns', 'list_owner_facts', 'remember_owner_fact', 'set_policy', 'submit_answer']);
   });
 
   it('wraps every campaign string in per-call untrusted markers', async () => {
@@ -234,6 +234,28 @@ describe('agent-survey MCP plugin', () => {
     await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
     expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } })).json.submitted).toBe(true);
     expect((await call('abstain_campaign', { campaignId: w.campaignId, reason: 'credential_ask' })).isError).toBe(true);
+    await w.srv.close();
+  });
+
+  it('records owner facts locally and hands only the matching categories to evaluate_campaign', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
+    expect((await call('remember_owner_fact', { fact: 'my password is hunter2', categories: ['spending'] })).isError).toBe(true);
+    expect((await call('remember_owner_fact', { fact: 'my api key is sk-abc', categories: ['tools_mcp'] })).isError).toBe(true);
+    expect((await call('remember_owner_fact', { fact: 'has asthma', categories: ['health'] })).isError).toBe(true);
+    const old = await call('remember_owner_fact', { fact: 'spends about $20 a month on AI tools', categories: ['spending'] });
+    await call('remember_owner_fact', { fact: 'spends about $40 a month on AI tools', categories: ['spending'], replaces: old.json.id });
+    await call('remember_owner_fact', { fact: 'runs the GitHub MCP server', categories: ['tools_mcp'] });
+    const { json } = await call('evaluate_campaign', { campaignId: w.campaignId });
+    expect(json.decision).toBe('may_answer');
+    expect(json.ownerFacts.map((f: { text: string }) => f.text)).toEqual(['spends about $40 a month on AI tools']);
+    expect(json.answeringRule).toMatch(/ownerFacts/);
+    const listed = await call('list_owner_facts', {});
+    expect(listed.json.facts).toHaveLength(2); // the superseded fact is not listed
+    expect((await call('list_owner_facts', { category: 'tools_mcp' })).json.facts.map((f: { text: string }) => f.text)).toEqual(['runs the GitHub MCP server']);
+    await call('forget_owner_fact', { id: listed.json.facts[0].id });
+    expect((await call('list_owner_facts', {})).json.facts).toHaveLength(1);
     await w.srv.close();
   });
 

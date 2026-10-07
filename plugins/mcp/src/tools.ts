@@ -1,11 +1,12 @@
 // plugins/mcp/src/tools.ts
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  ABSTAIN_REASONS, ABSTAIN_REASON_KEYS, AGENT_CATEGORIES, OWNER_FACING_CATEGORIES, answersValid, approvalNeeded, calibrationGate, canonicalAnswers, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
+  ABSTAIN_REASONS, ABSTAIN_REASON_KEYS, AGENT_CATEGORIES, OWNER_FACING_CATEGORIES, answersValid, approvalNeeded, calibrationGate, canonicalAnswers, categoriesOf, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
   shownQuestion,
   type CampaignSpec,
 } from '@as/shared';
 import { z } from 'zod';
+import { activeFacts, factId, factProblem, factsFor, FACT_CATEGORIES } from './facts.js';
 import { DEFAULT_POLICY, localStore, type LocalState } from './store.js';
 import { fundTxProblem, type AgentWallet } from './wallet.js';
 
@@ -122,6 +123,42 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     return text('Policy saved locally.');
   });
 
+  // ---------- owner facts (local only) ----------
+  server.registerTool('remember_owner_fact', {
+    description: 'Record something the owner told you about themselves, filed under the campaign categories it answers '
+      + `(${FACT_CATEGORIES.join(', ')}). Only after the owner actually said it; never a guess, never a key, password or token. `
+      + 'Stays on this machine. Use replaces (an older fact id) when it supersedes an older fact.',
+    inputSchema: { fact: z.string().max(400), categories: z.array(z.string()).min(1).max(4), replaces: z.string().optional() },
+  }, async ({ fact, categories, replaces }) => {
+    const s = store.load();
+    const problem = factProblem(fact, categories, activeFacts(s.facts).length);
+    if (problem) return fail(problem);
+    const id = factId(fact);
+    const facts = (s.facts ?? []).filter((f) => f.id !== id).map((f) => (f.id === replaces ? { ...f, supersededBy: id } : f));
+    facts.push({ id, text: fact.trim(), categories, recordedAt: new Date().toISOString() });
+    store.save({ ...s, facts });
+    return text({ id, note: 'Stored locally. Campaigns in these categories will see it in ownerFacts.' });
+  });
+
+  server.registerTool('list_owner_facts', {
+    description: 'List the owner facts stored on this machine (optionally for one category).',
+    inputSchema: { category: z.string().optional() },
+  }, async ({ category }) => {
+    const all = store.load().facts;
+    const facts = category ? factsFor(all, [category]) : activeFacts(all);
+    return text({ facts: facts.map((f) => ({ id: f.id, text: f.text, categories: f.categories, recordedAt: f.recordedAt })) });
+  });
+
+  server.registerTool('forget_owner_fact', {
+    description: 'Delete a stored owner fact by id (when the owner asks, or it is no longer true).',
+    inputSchema: { id: z.string() },
+  }, async ({ id }) => {
+    const s = store.load();
+    if (!(s.facts ?? []).some((f) => f.id === id)) return fail(`no stored fact with id ${id}`);
+    store.save({ ...s, facts: (s.facts ?? []).filter((f) => f.id !== id) });
+    return text({ forgotten: id });
+  });
+
   server.registerTool('list_campaigns', { description: 'List active research campaigns this agent can answer.' }, async () => {
     const missing = needToken(); if (missing) return missing;
     const { campaigns } = (await api('/agents/campaigns', { headers: agentHeaders() })) as { campaigns: AgentCampaign[] };
@@ -142,7 +179,14 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       await api(`/agents/campaigns/${campaignId}/decision`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify({ kind: 'abstain', reason: verdict.reason }) });
       store.save({ ...s, decided: [...s.decided, campaignId] });
     }
-    return text(verdict.ok ? { decision: 'may_answer', campaign: untrusted(c, await agentAddress()), ...(await calibrationWaiting()) } : { decision: 'abstained', reason: verdict.reason });
+    if (!verdict.ok) return text({ decision: 'abstained', reason: verdict.reason });
+    // Chosen from the platform's category labels alone, before the model reads any campaign text (AirGapAgent).
+    const facts = factsFor(s.facts, categoriesOf(c));
+    return text({ decision: 'may_answer', campaign: untrusted(c, await agentAddress()),
+      ownerFacts: facts.map((f) => ({ id: f.id, text: f.text, categories: f.categories })),
+      answeringRule: 'Questions about the owner: answer only from ownerFacts, then pass sources: owner_told. Questions about your own setup: '
+        + 'answer only from what you can check right now, then pass sources: checked. Anything else: abstain, or pass sources: inferred.',
+      ...(await calibrationWaiting()) });
   });
 
   server.registerTool('abstain_campaign', {

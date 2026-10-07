@@ -2,6 +2,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AudienceProfile, OwnerPolicy } from '@as/shared';
+import type { OwnerFact } from './facts.js';
 
 /** Local plugin state in ${CLAUDE_PLUGIN_DATA}: the owner policy and profile never leave this machine. */
 export interface LocalState {
@@ -15,6 +16,8 @@ export interface LocalState {
   profile?: AudienceProfile;
   /** Opt-in, like the web agent's "Match campaigns to my profile" toggle. Off: campaigns are not audience-matched. */
   matchAudience?: boolean;
+  /** What the owner told the agent about themselves (remember_owner_fact), filed by category. Never sent anywhere. */
+  facts?: OwnerFact[];
 }
 
 export const DEFAULT_POLICY: OwnerPolicy = {

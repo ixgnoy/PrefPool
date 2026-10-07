@@ -1,6 +1,6 @@
 // shared/test/lint.test.ts
 import { describe, expect, it } from 'vitest';
-import { hasLikertAnchors, lintCampaign, lintQuestion, withLikertAnchors } from '../src/lint.js';
+import { hasLikertAnchors, lintCampaign, lintQuestion, looksLikeSecret, withLikertAnchors } from '../src/lint.js';
 import type { Question } from '../src/types.js';
 
 const sc = (text: string, options: string[], id = 'q1'): Question => ({ id, type: 'single_choice', text, options });
@@ -402,5 +402,20 @@ describe('likert anchor helpers (web prefill)', () => {
     expect(withLikertAnchors('')).toBe('(1 = not at all, 5 = very much)');
     expect(withLikertAnchors('How often? (1 = never, 5 = very often)')).toBe('How often? (1 = never, 5 = very often)');
     expect(lintQuestion({ id: 'q1', type: 'likert_5', text: withLikertAnchors('How much do you trust new e-wallet brands?') }).map((i) => i.rule)).not.toContain('likert_anchors');
+  });
+});
+
+describe('looksLikeSecret (owner fact store)', () => {
+  it('refuses credentials named or pasted in first-person text', () => {
+    for (const t of ['my password is hunter2', 'my api key is sk-abc', 'token: 123abc', 'uses ghp_abcdEFGH1234',
+      'Bearer 9fK2xQ7mL4pR8vT1wZ3yB6nC5dE0gH2jAq', 'my seed phrase starts with apple', 'my PIN is 4321', 'OPENAI_API_KEY in .env']) {
+      expect(looksLikeSecret(t), t).toBe(true);
+    }
+  });
+  it('accepts ordinary facts about the owner and their tools', () => {
+    for (const t of ['spends about $40 a month on AI tools', 'runs the GitHub MCP server', 'uses a password manager',
+      'pays for tools by card', 'asked a risk-free question', 'uses about 2 million tokens a month', 'works at a desk-heavy job']) {
+      expect(looksLikeSecret(t), t).toBe(false);
+    }
   });
 });
