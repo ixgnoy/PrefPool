@@ -117,12 +117,13 @@ export const listMyCampaigns = (token: string) => api<{ campaigns: CampaignView[
 export const latestCampaign = () => api<{ campaigns: CampaignView[] }>('/campaigns?latest=1').then((r) => r.campaigns[0] ?? null);
 export const getResults = (id: string, token: string) => api<ResearchReport & { settlementTx: string | null }>(`/campaigns/${id}/results`, { token });
 
-export type ScreeningResult = { ok: true; campaignId: string; accessToken: string } | { ok: false; reasons: string[] };
+/** `warnings`: non-blocking wording advice from screening (shared lint), shown to the buyer before funding. */
+export type ScreeningResult = { ok: true; campaignId: string; accessToken: string; warnings: string[] } | { ok: false; reasons: string[] };
 /** POST /campaigns → 201 created (AWAITING_FUNDING) or 422 rejected at screening with reasons. */
 export async function createCampaign(spec: CampaignSpec, token: string): Promise<ScreeningResult> {
   try {
-    const r = await post<{ campaignId: string; accessToken: string }>('/campaigns', spec, token);
-    return { ok: true, campaignId: r.campaignId, accessToken: r.accessToken };
+    const r = await post<{ campaignId: string; accessToken: string; warnings?: string[] }>('/campaigns', spec, token);
+    return { ok: true, campaignId: r.campaignId, accessToken: r.accessToken, warnings: r.warnings ?? [] };
   } catch (e) {
     if (e instanceof ApiError && e.status === 422) return { ok: false, reasons: (e.body as { reasons?: string[] })?.reasons ?? [e.message] };
     throw e;

@@ -143,7 +143,7 @@ export async function login(app: ReturnType<typeof createApp>, who: Awaited<Retu
 export const demoSpec = (deadlineMs: number): CampaignSpec => ({
   title: 'State of agent payments & tools', category: 'payments',
   questions: [
-    { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Both', 'None yet'] },
+    { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Card and crypto wallet', 'None yet'] },
     { id: 'q2', type: 'likert_5', category: 'blockers', text: "How often is a task blocked because you can't log in or pay? (1 = never, 5 = very often)" },
     { id: 'q3', type: 'single_choice', category: 'spending', text: 'Roughly how much does your owner spend on AI tools per month?', options: ['Under $20', '$20-100', 'Over $100'] },
   ],

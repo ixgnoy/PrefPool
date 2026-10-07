@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import { Transaction } from '@solana/web3.js';
 import { checkFundingTx } from '@as/chain';
-import { campaignEscrowAddress, randomHex32, screenCampaign, type CampaignDatumFields, type CampaignSpec } from '@as/shared';
+import { campaignEscrowAddress, randomHex32, screenCampaign, screenWarnings, type CampaignDatumFields, type CampaignSpec } from '@as/shared';
 import { z } from 'zod';
 import { requireSession, type AuthedRequest } from './auth.js';
 import { HttpError, type Deps } from './deps.js';
@@ -62,24 +62,25 @@ export async function setState(deps: Deps, id: string, state: string, extra: Rec
 export async function createCampaign(deps: Deps, spec: CampaignSpec, buyerAddress: string) {
   const id = randomHex32();
   const reasons = screenCampaign(spec, deps.now());
+  const warnings = screenWarnings(spec);
   const accessToken = newToken();
   const state = reasons.length ? 'REJECTED' : 'AWAITING_FUNDING';
   await deps.db.query(
-    `insert into campaigns (id, spec, state, buyer_address, buyer_pkh, buyer_stake, access_token_hash, reject_reasons, deadline_ms, refund_after_ms)
-     values ($1, $2::jsonb, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)`,
+    `insert into campaigns (id, spec, state, buyer_address, buyer_pkh, buyer_stake, access_token_hash, reject_reasons, deadline_ms, refund_after_ms, lint_warnings)
+     values ($1, $2::jsonb, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11::jsonb)`,
     [id, JSON.stringify(spec), state, buyerAddress, buyerAddress, null, hashToken(accessToken), // buyer_pkh/buyer_stake: legacy columns
-      JSON.stringify(reasons), spec.deadlineMs, spec.deadlineMs + GRACE_MS],
+      JSON.stringify(reasons), spec.deadlineMs, spec.deadlineMs + GRACE_MS, JSON.stringify(warnings)],
   );
-  return { id, state, reasons, accessToken };
+  return { id, state, reasons, warnings, accessToken };
 }
 
 export function campaignRoutes(deps: Deps): Router {
   const r = Router();
   r.post('/campaigns', requireSession(deps), async (req: AuthedRequest, res) => {
     const spec = specSchema.parse(req.body);
-    const { id, state, reasons, accessToken } = await createCampaign(deps, spec, req.address!);
+    const { id, state, reasons, warnings, accessToken } = await createCampaign(deps, spec, req.address!);
     if (reasons.length) return res.status(422).json({ campaignId: id, state, reasons });
-    res.status(201).json({ campaignId: id, state, accessToken });
+    res.status(201).json({ campaignId: id, state, accessToken, warnings });
   });
 
   const fundable = async (req: AuthedRequest) => {

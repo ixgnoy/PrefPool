@@ -154,9 +154,21 @@ describe('draft_campaign', () => {
     expect(ok.json.fundingLink).toMatch(/^http:\/\/w\/research\/new#draft=/);
     expect(ok.json.budgetSol).toBe(0.2);
     expect(ok.json.next).toMatch(/Phantom/);
+    expect(ok.json.warnings).toEqual([expect.stringMatching(/^q1: add an option/)]);
+    expect(ok.json.fixFirst).toMatch(/rephrase before funding/);
+    const clean = await call('draft_campaign', { title: 'Slogan test', category: 'tools_mcp',
+      questions: [{ id: 'q1', type: 'single_choice', text: 'Which slogan?', options: ['A', 'B', 'Not sure'] }] });
+    expect(clean.json.warnings).toEqual([]);
+    expect(clean.json.fixFirst).toBeUndefined();
+    const both = await call('draft_campaign', { title: 'Pay', category: 'payments',
+      questions: [{ id: 'q1', type: 'single_choice', text: 'Which do you use?', options: ['Card', 'Crypto', 'Both'] }] });
+    expect(both.isError).toBe(true);
+    expect(both.text).toMatch(/refers to other options/);
+    expect((await call('draft_campaign', { title: 'x', category: 'brand',
+      questions: [{ id: 'q1', type: 'single_choice', text: 'Which slogan?', options: ['A', 'B', 'Not sure'] }] })).text).toMatch(/unknown category: brand/);
     const draft = JSON.parse(Buffer.from(ok.json.fundingLink.split('#draft=')[1], 'base64url').toString());
     expect(draft).toMatchObject({ title: 'Slogan test', rewardSol: 0.01, maxResponses: 20, minCohort: 10 });
-    expect((await call('draft_campaign', { title: 't', category: 'tools_mcp', questions: [{ id: 'q1', type: 'likert_5', text: 'x' }],
+    expect((await call('draft_campaign', { title: 't', category: 'tools_mcp', questions: [{ id: 'q1', type: 'likert_5', text: 'How often do you hit rate limits? (1 = never, 5 = very often)' }],
       createWithAgentWallet: true })).text).toMatch(/No agent wallet/);
   });
   it('createWithAgentWallet creates the campaign as the agent wallet (company = agent)', async () => {
@@ -165,7 +177,8 @@ describe('draft_campaign', () => {
     const call = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: dir(), fetchFn: p.fetchFn, wallet: agentWallet(agent.secretKey), maxBudgetSol: 1 });
     const r = await call('draft_campaign', { title: 'Slogan test', category: 'tools_mcp', rewardSol: 0.005, maxResponses: 12, minCohort: 6,
       questions: [{ id: 'q1', type: 'single_choice', text: 'Which slogan?', options: ['A', 'B'] }] , createWithAgentWallet: true });
-    expect(r.json).toMatchObject({ campaignId: CID, accessToken: 'd'.repeat(64), budgetSol: 0.06, company: agent.publicKey.toBase58() });
+    expect(r.json).toMatchObject({ campaignId: CID, accessToken: 'd'.repeat(64), budgetSol: 0.06, company: agent.publicKey.toBase58(),
+      warnings: [expect.stringMatching(/^q1: add an option/)], fixFirst: expect.any(String) });
     const create = p.seen.find((s) => s.path === '/campaigns')!;
     expect(create.auth).toBe(`Bearer ${'s'.repeat(64)}`);
     expect(create.body).toMatchObject({ rewardLamports: '5000000', maxResponses: 12, minCohort: 6 });

@@ -83,6 +83,20 @@ describe('campaigns and funding', () => {
     const res = await request(app).post('/api/campaigns').set({ Authorization: `Bearer ${s}` }).send(spec).expect(422);
     expect(res.body).toMatchObject({ state: 'REJECTED', reasons: ['identifying question: q1'] });
   });
+  it('returns wording warnings with a created campaign and rejects lint blocks', async () => {
+    const { app, clock, deps } = await makeDeps();
+    const auth = { Authorization: `Bearer ${await login(app, await wallet())}` };
+    const ok = await request(app).post('/api/campaigns').set(auth).send(demoSpec(clock.now + 600_000)).expect(201);
+    expect(ok.body.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/^q3: add an option/)]));
+    const rows = await deps.db.query<{ lint_warnings: string[] }>('select lint_warnings from campaigns where id = $1', [ok.body.campaignId]);
+    expect(rows[0]!.lint_warnings).toEqual(ok.body.warnings);
+    const bad = demoSpec(clock.now + 600_000);
+    bad.questions[0]!.options = ['Card', 'Crypto', 'Both'];
+    const rejected = await request(app).post('/api/campaigns').set(auth).send(bad).expect(422);
+    expect(rejected.body.reasons.join()).toMatch(/refers to other options/);
+    const unknown = await request(app).post('/api/campaigns').set(auth).send({ ...demoSpec(clock.now + 600_000), category: 'brand' }).expect(422);
+    expect(unknown.body.reasons).toContain('unknown category: brand');
+  });
   it('rejects more responses than one settle tx can pay', async () => {
     const { app, clock } = await makeDeps();
     const s = await login(app, await wallet());

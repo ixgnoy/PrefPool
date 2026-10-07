@@ -1,5 +1,6 @@
 // shared/src/screening.ts
-import { SENSITIVE_CATEGORIES } from './categories';
+import { KNOWN_CATEGORIES, SENSITIVE_CATEGORIES } from './categories';
+import { lintCampaign, MAX_SINGLE_CHOICE_OPTIONS } from './lint';
 import { MAX_PAYEES } from './settlePayload';
 import type { CampaignSpec } from './types';
 
@@ -43,10 +44,11 @@ export function screenCampaign(spec: CampaignSpec, nowMs: number, maxResponsesCa
   const reasons: string[] = [];
   const cats = [spec.category, ...spec.questions.map((q) => q.category ?? spec.category)];
   for (const c of cats) if (SENSITIVE_CATEGORIES.includes(c)) reasons.push(`sensitive category: ${c}`);
+  for (const c of cats) if (!KNOWN_CATEGORIES.includes(c)) reasons.push(`unknown category: ${c}`);
   for (const q of spec.questions) {
     for (const re of IDENTIFYING) if (re.test(q.text) || (q.options ?? []).some((o) => re.test(o))) reasons.push(`identifying question: ${q.id}`);
     for (const re of INJECTION) if (re.test(q.text) || (q.options ?? []).some((o) => re.test(o))) reasons.push(`injection pattern: ${q.id}`);
-    if (q.type === 'single_choice' && !(q.options && q.options.length >= 2 && q.options.length <= 6)) reasons.push(`bad options: ${q.id}`);
+    if (q.type === 'single_choice' && !(q.options && q.options.length >= 2 && q.options.length <= MAX_SINGLE_CHOICE_OPTIONS + 1)) reasons.push(`bad options: ${q.id}`);
   }
   if (spec.questions.length < 1 || spec.questions.length > 5) reasons.push('1 to 5 questions required');
   if (new Set(spec.questions.map((q) => q.id)).size !== spec.questions.length) reasons.push('duplicate question id');
@@ -54,5 +56,12 @@ export function screenCampaign(spec: CampaignSpec, nowMs: number, maxResponsesCa
   if (spec.maxResponses < 1 || spec.maxResponses > maxResponsesCap) reasons.push(`maxResponses must be 1..${maxResponsesCap}`);
   if (spec.minCohort < 1 || spec.minCohort > spec.maxResponses) reasons.push('minCohort must be 1..maxResponses');
   if (spec.deadlineMs < nowMs + 60_000) reasons.push('deadline must be at least 1 minute ahead');
+  // Wording blocks (shared/src/lint.ts): meta options, work requests, credential asks, unlabeled scales. The finer
+  // option-count rule (5 substantive + 1 escape) lives there too; `bad options` above only bounds the total.
+  for (const i of lintCampaign(spec)) if (i.level === 'block') reasons.push(i.message);
   return [...new Set(reasons)];
 }
+
+/** Non-blocking wording advice, returned to the buyer with the created campaign. */
+export const screenWarnings = (spec: Pick<CampaignSpec, 'category' | 'questions'>): string[] =>
+  lintCampaign(spec).filter((i) => i.level === 'warn').map((i) => i.message);

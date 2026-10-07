@@ -1,7 +1,7 @@
 // shared/test/policy.test.ts
 import { describe, expect, it } from 'vitest';
 import { approvalNeeded, evaluatePolicy } from '../src/policy.js';
-import { screenCampaign } from '../src/screening.js';
+import { screenCampaign, screenWarnings } from '../src/screening.js';
 import { syntheticAnswers } from '../src/answers.js';
 import type { CampaignSpec, OwnerPolicy } from '../src/types.js';
 
@@ -14,7 +14,7 @@ const now = 1_760_000_000_000;
 const spec: CampaignSpec = {
   title: 'State of agent payments & tools', category: 'payments',
   questions: [
-    { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Both', 'None yet'] },
+    { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Card and crypto wallet', 'None yet'] },
     { id: 'q2', type: 'likert_5', category: 'blockers', text: "How often is a task blocked because you can't log in or pay? (1 = never, 5 = very often)" },
     { id: 'q3', type: 'single_choice', category: 'spending', text: 'Roughly how much does your owner spend on AI tools per month?', options: ['Under $20', '$20-100', 'Over $100'] },
   ],
@@ -115,6 +115,21 @@ describe('screenCampaign', () => {
       'What is your preferred wallet?', 'Does your account setup start with email verification?',
     ]) expect(screenCampaign(ask(text), now)).toEqual([]);
     expect(screenCampaign(ask('Which do you say?', ['Wait...ok', 'Not sure', 'Other']), now)).toEqual([]);
+  });
+  it('rejects lint blocks and unknown categories, and lists warnings separately', () => {
+    const both = { ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text: 'Which do you use?', options: ['Card', 'Crypto', 'Both'] }] };
+    expect(screenCampaign(both, now)).toContain('q1: "Both" refers to other options; spell the combination out instead');
+    expect(screenCampaign({ ...spec, category: 'brand' }, now)).toContain('unknown category: brand');
+    const qBrand = { ...spec, questions: [{ ...spec.questions[0]!, category: 'brand' }] };
+    expect(screenCampaign(qBrand, now)).toContain('unknown category: brand');
+    expect(screenWarnings(spec)).toEqual(expect.arrayContaining([expect.stringMatching(/^q2: a negative/), expect.stringMatching(/^q3: add an option/)]));
+    expect(screenCampaign(spec, now)).toEqual([]); // warnings never reject
+  });
+  it('leaves the option-count rule to lint: 6 options with one escape pass, 6 substantive or 7 total are rejected', () => {
+    const opts = (options: string[]) => ({ ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text: 'Which do you use most?', options }] });
+    expect(screenCampaign(opts(['A', 'B', 'C', 'D', 'E', 'None yet']), now)).toEqual([]);
+    expect(screenCampaign(opts(['A', 'B', 'C', 'D', 'E', 'F']), now).join()).toMatch(/at most 5 options/);
+    expect(screenCampaign(opts(['A', 'B', 'C', 'D', 'E', 'F', 'None yet']), now)).toContain('bad options: q1');
   });
   it('rejects questions about credentials (keys, passwords, how secrets are stored)', () => {
     expect(screenCampaign({ ...spec, category: 'credentials' }, now)).toContain('sensitive category: credentials');

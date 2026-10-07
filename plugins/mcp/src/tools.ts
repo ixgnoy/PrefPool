@@ -1,7 +1,7 @@
 // plugins/mcp/src/tools.ts
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  answersValid, approvalNeeded, calibrationGate, canonicalAnswers, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, sealEnvelope,
+  answersValid, approvalNeeded, calibrationGate, canonicalAnswers, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
   shownQuestion,
   type CampaignSpec,
 } from '@as/shared';
@@ -236,6 +236,9 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       deadlineMs: Date.now() + deadlineMinutes * 60_000 };
     const reasons = screenCampaign(spec, Date.now());
     if (reasons.length) return fail(`Platform screening would reject this campaign: ${reasons.join('; ')}`);
+    // Wording advice never rejects; it goes back to the researcher agent so it can rephrase before anyone pays.
+    const warnings = screenWarnings(spec);
+    const advice = { warnings, ...(warnings.length ? { fixFirst: 'Small models answer badly on these; rephrase before funding.' } : {}) };
     const budgetSol = sol(rewardLamports * BigInt(maxResponses));
     if (createWithAgentWallet) {
       if (!opts.wallet) return fail('No agent wallet configured (agent_solana_secret_key in the plugin config). Use the funding link instead.');
@@ -243,12 +246,12 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
         headers: { ...json, Authorization: `Bearer ${await walletSession(opts.wallet)}` }, body: JSON.stringify(spec) });
       const body = (await res.json().catch(() => null)) as { campaignId?: string; accessToken?: string; reasons?: string[]; error?: string } | null;
       if (res.status !== 201) return fail(`Campaign not created (${res.status}): ${body?.reasons?.join('; ') ?? body?.error ?? ''}`);
-      return text({ campaignId: body!.campaignId, accessToken: body!.accessToken, budgetSol, company: opts.wallet.address,
+      return text({ campaignId: body!.campaignId, accessToken: body!.accessToken, budgetSol, company: opts.wallet.address, ...advice,
         next: `Keep the access token (it unlocks the report). Call fund_campaign to lock ${budgetSol} SOL from the agent wallet `
           + `(allowed up to max_budget_sol = ${opts.maxBudgetSol ?? 0}).` });
     }
     const draft = Buffer.from(JSON.stringify({ title, category, questions, deadlineMinutes, rewardSol, maxResponses, minCohort })).toString('base64url');
-    return text({ fundingLink: `${opts.webUrl}/research/new#draft=${draft}`, budgetSol,
+    return text({ fundingLink: `${opts.webUrl}/research/new#draft=${draft}`, budgetSol, ...advice,
       next: `Open the link, sign in with a Solana wallet (Phantom, Solflare, Backpack) on devnet and approve ${budgetSol} SOL. `
         + 'Paste the campaign id and access token back here.' });
   });

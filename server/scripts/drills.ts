@@ -49,7 +49,7 @@ if (cmd === 'answer' || cmd === 'late') {
   console.log(JSON.stringify({ drill: 'malicious campaign', status: r.status, state: r.body?.state, reasons: r.body?.reasons }));
 } else if (cmd === 'create') {
   const me = await signIn('BUYER_SECRET_KEY');
-  const r = await call('/campaigns', { method: 'POST', token: me.sessionToken, body: JSON.stringify(spec(arg1 ?? 'gaming', Number(arg2 ?? '15'))) });
+  const r = await call('/campaigns', { method: 'POST', token: me.sessionToken, body: JSON.stringify(spec(arg1 ?? 'spending', Number(arg2 ?? '15'))) });
   console.log(JSON.stringify({ campaignId: r.body?.campaignId, accessToken: r.body?.accessToken, state: r.body?.state }));
 } else {
   console.error('usage: drills.ts answer|late <campaignId> | rejected | create <category> <minCohort>');

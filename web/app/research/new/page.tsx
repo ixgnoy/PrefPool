@@ -12,7 +12,7 @@ import { createCampaign, getCampaign } from '@/lib/api';
 import { CATEGORIES, SENSITIVE, categoryLabel } from '@/lib/policy';
 import { AGES, COUNTRIES, COUNTRY_CODES, OCCUPATIONS, ageValue } from '@/lib/audience';
 import { LAMPORTS, REFUND_DELAY_MS, fmtSol, fmtTime, sol } from '@/lib/campaign';
-import { MAX_PAYEES } from '@as/shared';
+import { MAX_PAYEES, MAX_SINGLE_CHOICE_OPTIONS } from '@as/shared';
 import type { CampaignSpec, Question } from '@as/shared';
 import { ArrowDown } from 'pixelarticons/react/ArrowDown';
 import { ArrowUp } from 'pixelarticons/react/ArrowUp';
@@ -35,7 +35,7 @@ const DEFAULT: Draft = {
   title: 'State of agent payments & tools', category: 'payments', deadlineMin: 10,
   countries: ['Malaysia'], ageBands: ['25–34'], occupations: [],
   questions: [
-    { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Both', 'None yet'] },
+    { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Card and crypto wallet', 'None yet'] },
     { id: 'q2', type: 'likert_5', text: "How often is a task blocked because you can't log in or pay? (1 = never, 5 = very often)", category: 'blockers' },
     { id: 'q3', type: 'single_choice', text: 'Roughly how much does your owner spend on AI tools per month?', options: ['Under $20', '$20-100', 'Over $100'], category: 'spending' },
   ],
@@ -48,7 +48,9 @@ const estimateEligible = (d: Draft) => {
   const f = (n: number) => (n ? Math.min(1, n * 0.35) : 1);
   return Math.round(600 * f(d.countries.length) * f(d.ageBands.length) * f(d.occupations.length));
 };
-const validQ = (q: Question) => q.text.trim().length > 3 && (q.type === 'likert_5' || ((q.options?.length ?? 0) >= 2 && (q.options?.length ?? 0) <= 6 && q.options!.every((o) => o.trim())));
+/** Up to MAX_SINGLE_CHOICE_OPTIONS substantive options plus one escape ("None yet"); screening applies the finer rule. */
+const MAX_OPTIONS = MAX_SINGLE_CHOICE_OPTIONS + 1;
+const validQ = (q: Question) => q.text.trim().length > 3 && (q.type === 'likert_5' || ((q.options?.length ?? 0) >= 2 && (q.options?.length ?? 0) <= MAX_OPTIONS && q.options!.every((o) => o.trim())));
 
 const input = 'w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-[15px] transition focus:border-blue focus:outline-none focus:ring-[3px] focus:ring-blue-soft';
 
@@ -60,6 +62,7 @@ export default function NewCampaign() {
   const [d, setD] = useState<Draft>(DEFAULT);
   const [screening, setScreening] = useState<'idle' | 'running' | 'rejected'>('idle');
   const [reasons, setReasons] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [created, setCreated] = useState<{ id: string; accessToken: string; deadlineMs: number } | null>(null);
   const [funded, setFunded] = useState(false);
   const [budgetReady, setBudgetReady] = useState(true); // false while a ?fund= resume loads the saved campaign
@@ -131,6 +134,7 @@ export default function NewCampaign() {
       const r = await createCampaign(spec, session.sessionToken);
       if (!r.ok) { setReasons(r.reasons); setScreening('rejected'); return; }
       setScreening('idle');
+      setWarnings(r.warnings);
       rememberAccessToken(r.campaignId, r.accessToken);
       setCreated({ id: r.campaignId, accessToken: r.accessToken, deadlineMs: dl });
     } catch (e) {
@@ -247,7 +251,7 @@ export default function NewCampaign() {
                           <button type="button" aria-label="Remove option" disabled={(q.options?.length ?? 0) <= 2} onClick={() => setQ(i, { options: q.options!.filter((_, m) => m !== k) })} className="px-2 text-muted hover:text-danger-ink disabled:opacity-30"><Close aria-hidden width={16} height={16} /></button>
                         </div>
                       ))}
-                      {(q.options?.length ?? 0) < 6 && <button type="button" className="self-start text-[13px] font-bold text-blue" onClick={() => setQ(i, { options: [...(q.options ?? []), ''] })}>+ Add option</button>}
+                      {(q.options?.length ?? 0) < MAX_OPTIONS && <button type="button" className="self-start text-[13px] font-bold text-blue" onClick={() => setQ(i, { options: [...(q.options ?? []), ''] })}>+ Add option</button>}
                     </div>
                   ) : <div className="flex flex-wrap gap-1.5">{['1 · not at all', '2', '3', '4', '5 · very likely'].map((o) => <span key={o} className="rounded-lg border border-line px-2.5 py-1 text-[13px]">{o}</span>)}</div>}
                   {q.category && <span className="text-xs font-bold text-warn-ink">Agents whose owners block this category will abstain from the whole campaign.</span>}
@@ -316,6 +320,12 @@ export default function NewCampaign() {
             ) : (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-2xl font-bold">Fund the <Term k="escrow" /></h2><span className="rounded-lg bg-ok-soft px-3 py-1 text-xs font-semibold text-ok-ink">Passed screening</span></div>
+                {warnings.length > 0 && (
+                  <div className="rounded-2xl bg-subtle p-3 text-sm">
+                    <p className="font-semibold">Wording suggestions (optional)</p>
+                    <ul className="list-disc pl-5 text-muted">{warnings.map((w) => <li key={w}>{w}</li>)}</ul>
+                  </div>
+                )}
                 {budgetReady
                   ? <FundEscrow campaignId={created.id} budgetSol={budget} onFunded={() => setFunded(true)} />
                   : resumeError ? null : <div className="h-40 animate-pulse rounded-2xl bg-subtle" />}
