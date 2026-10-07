@@ -74376,7 +74376,7 @@ async function reportPayingFetch(secretKey, opts) {
 }
 
 // src/main.ts
-var env = process.env;
+var env = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v && !v.startsWith("${")));
 var rpcUrl = env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 var wallet = env.AGENT_SOLANA_SECRET_KEY ? agentWallet(parseSecretKey(env.AGENT_SOLANA_SECRET_KEY)) : void 0;
 var server = createAgentSurveyServer({

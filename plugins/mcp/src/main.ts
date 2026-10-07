@@ -7,7 +7,8 @@ import { createAgentSurveyServer } from './tools.js';
 import { agentWallet, parseSecretKey } from './wallet.js';
 import { reportPayingFetch } from './x402.js';
 
-const env = process.env;
+// Plugin hosts may pass an unset user setting as "" or as its literal "${user_config.x}" placeholder: both mean unset.
+const env = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v && !v.startsWith('${'))) as NodeJS.ProcessEnv;
 const rpcUrl = env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 /** The agent's own devnet keypair: within max_budget_sol, funds the campaigns it creates. */
 const wallet = env.AGENT_SOLANA_SECRET_KEY ? agentWallet(parseSecretKey(env.AGENT_SOLANA_SECRET_KEY)) : undefined;

@@ -9,7 +9,6 @@
         "AGENT_TOKEN": "${user_config.agent_token}",
         "AGENT_SOLANA_SECRET_KEY": "${user_config.agent_solana_secret_key}",
         "SOLANA_RPC_URL": "${user_config.solana_rpc_url}",
-        "MAX_REPORT_PRICE_USDC": "${user_config.max_report_price_usdc}",
         "MAX_BUDGET_SOL": "${user_config.max_budget_sol}",
         "CLAUDE_PLUGIN_DATA": "${CLAUDE_PLUGIN_DATA}"
       }
