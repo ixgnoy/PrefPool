@@ -1,12 +1,12 @@
 // plugins/mcp/src/tools.ts
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  ABSTAIN_REASONS, ABSTAIN_REASON_KEYS, AGENT_CATEGORIES, OWNER_FACING_CATEGORIES, answersValid, approvalNeeded, calibrationGate, canonicalAnswers, categoriesOf, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
+  ABSTAIN_REASONS, ABSTAIN_REASON_KEYS, AGENT_CATEGORIES, ANSWER_SOURCES, OWNER_FACING_CATEGORIES, answersValid, approvalNeeded, calibrationGate, canonicalAnswers, categoriesOf, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
   shownQuestion,
   type CampaignSpec,
 } from '@as/shared';
 import { z } from 'zod';
-import { activeFacts, factId, factProblem, factsFor, FACT_CATEGORIES } from './facts.js';
+import { factId, factProblem, factsFor, FACT_CATEGORIES } from './facts.js';
 import { DEFAULT_POLICY, localStore, type LocalState } from './store.js';
 import { fundTxProblem, type AgentWallet } from './wallet.js';
 
@@ -127,17 +127,18 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   server.registerTool('remember_owner_fact', {
     description: 'Record something the owner told you about themselves, filed under the campaign categories it answers '
       + `(${FACT_CATEGORIES.join(', ')}). Only after the owner actually said it; never a guess, never a key, password or token. `
-      + 'Stays on this machine. Use replaces (an older fact id) when it supersedes an older fact.',
+      + 'Stays on this machine. Use replaces (an older fact id) to delete the fact this one corrects.',
     inputSchema: { fact: z.string().max(400), categories: z.array(z.string()).min(1).max(4), replaces: z.string().optional() },
   }, async ({ fact, categories, replaces }) => {
     const s = store.load();
-    const problem = factProblem(fact, categories, activeFacts(s.facts).length);
-    if (problem) return fail(problem);
     const id = factId(fact);
-    const facts = (s.facts ?? []).filter((f) => f.id !== id).map((f) => (f.id === replaces ? { ...f, supersededBy: id } : f));
-    facts.push({ id, text: fact.trim(), categories, recordedAt: new Date().toISOString() });
-    store.save({ ...s, facts });
-    return text({ id, note: 'Stored locally. Campaigns in these categories will see it in ownerFacts.' });
+    const kept = (s.facts ?? []).filter((f) => f.id !== id && f.id !== replaces); // replaced facts are deleted, never kept
+    const problem = factProblem(fact, categories, kept.length);
+    if (problem) return fail(problem);
+    const replacedUnknown = replaces !== undefined && !(s.facts ?? []).some((f) => f.id === replaces);
+    store.save({ ...s, facts: [...kept, { id, text: fact.trim(), categories, recordedAt: new Date().toISOString() }] });
+    return text({ id, note: 'Stored locally. Campaigns in these categories will see it in ownerFacts.',
+      ...(replacedUnknown ? { replaces: `no stored fact with id ${replaces}; nothing was replaced (see list_owner_facts)` } : {}) });
   });
 
   server.registerTool('list_owner_facts', {
@@ -145,7 +146,7 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     inputSchema: { category: z.string().optional() },
   }, async ({ category }) => {
     const all = store.load().facts;
-    const facts = category ? factsFor(all, [category]) : activeFacts(all);
+    const facts = category ? factsFor(all, [category]) : (all ?? []);
     return text({ facts: facts.map((f) => ({ id: f.id, text: f.text, categories: f.categories, recordedAt: f.recordedAt })) });
   });
 
@@ -205,7 +206,9 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   server.registerTool('submit_answer', {
     description: 'Answer a campaign for the owner. Answers are option positions as shown to you (single_choice, 0-based, in the order '
       + 'list_campaigns/evaluate_campaign showed them) or 1..5 (likert_5). Encrypted on this machine before sending.',
-    inputSchema: { campaignId: z.string().regex(/^[0-9a-f]{64}$/), answers: z.record(z.string(), z.number().int()), ownerApproved: z.boolean().optional() },
+    inputSchema: { campaignId: z.string().regex(/^[0-9a-f]{64}$/), answers: z.record(z.string(), z.number().int()), ownerApproved: z.boolean().optional(),
+      // Per-question answer source (see evaluate_campaign answeringRule). Accepted now; sealed from G8 on.
+      sources: z.record(z.string(), z.enum(ANSWER_SOURCES)).optional() },
   }, async ({ campaignId, answers, ownerApproved }) => {
     const missing = needToken(); if (missing) return missing;
     if ((store.load().abstained ?? []).includes(campaignId)) return fail('already decided for this campaign: you abstained from it');

@@ -146,17 +146,31 @@ const VALUE_ASK = /\b(?:stored?|stores|storing|kept|where|values?|contains?|cont
 // Secret values in first-person text (owner facts): well-known key prefixes, a long random-looking token, or
 // "<secret word> is/=/: <value>". Combined with the question patterns above in `looksLikeSecret`.
 const SECRET_VALUE = [
-  /\bsk[-_][A-Za-z0-9_-]{2,}|\bgh[pousr]_[A-Za-z0-9]{4,}|\bxox[abprs]-|\bAKIA[0-9A-Z]{8,}|\beyJ[A-Za-z0-9_-]{8,}/,
+  /\bsk[-_][A-Za-z0-9_-]{8,}|\bgh[pousr]_[A-Za-z0-9]{4,}|\bxox[abprs]-|\bAKIA[0-9A-Z]{8,}|\beyJ[A-Za-z0-9_-]{8,}/,
   /(?<![\w+/=-])(?=[\w+/=-]*\d)(?=[\w+/=-]*[A-Za-z])[\w+/=-]{32,}/,
   /\b(?:secrets?|tokens?|pins?|otps?|pass ?codes?|seeds?)\s*(?:is|are|was|=|:)\s*\S/i,
-  /\b(?:seed\s+phrases?|private\s+keys?|mnemonics?)\b/i,
+  /\b(?:seed\s+phrases?|private\s+keys?|mnemonics?)\b/i,  /\[\s*(?:\d{1,3}\s*,\s*){15,}\d{1,3}/, // a JSON byte array (solana-keygen id.json, even partial)
 ];
+// A BIP39-style seed phrase written out: 12+ lowercase 3-8 letter words in a row with no digits or punctuation and no
+// English function words (BIP39 has none of these), so ordinary sentences break the run.
+const FUNCTION_WORDS = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'are', 'was', 'were', 'has', 'have', 'had', 'but', 'not',
+  'you', 'your', 'our', 'his', 'her', 'its', 'per', 'they', 'them', 'their', 'what', 'when', 'which', 'who', 'how', 'than', 'then', 'does', 'did',
+  'can', 'will', 'would', 'should', 'could', 'also', 'very', 'just', 'some', 'most', 'more', 'every', 'each', 'uses', 'used', 'spends', 'month', 'week']);
+const SEED_RUN = 12;
+const looksLikeSeedPhrase = (text: string) => {
+  let run = 0;
+  for (const w of text.split(/\s+/)) {
+    run = /^[a-z]{3,8}$/.test(w) && !FUNCTION_WORDS.has(w) ? run + 1 : 0;
+    if (run >= SEED_RUN) return true;
+  }
+  return false;
+};
 /**
  * True when free text carries or names a credential: key/password/token mentions (except "password manager"), secret
  * values and long random tokens. Used by the plugin's owner fact store so it never becomes the leak.
  */
 export const looksLikeSecret = (text: string) =>
-  SECRET.some((r) => r.test(text)) || MECHANISM.test(text) || SECRET_VALUE.some((r) => r.test(text));
+  SECRET.some((r) => r.test(text)) || MECHANISM.test(text) || SECRET_VALUE.some((r) => r.test(text)) || looksLikeSeedPhrase(text);
 // Printable ASCII plus Latin-1/Latin Extended letters, typographic dashes/quotes/ellipsis and the euro sign.
 const ODD_CHARS = /[^\x09\x0A\x0D\x20-\x7E\u00A0-\u024F\u2010-\u2027\u20AC]/;
 const NUM = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`;

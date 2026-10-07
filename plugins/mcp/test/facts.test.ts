@@ -19,9 +19,12 @@ describe('owner facts', () => {
     expect(factProblem('I spend about $40 a month on AI tools', ['spending'], 3)).toBeNull();
     expect(factProblem('runs the GitHub MCP server', ['tools_mcp'], 3)).toBeNull();
     expect(factProblem('uses a password manager', ['tools_mcp'], 3)).toBeNull();
+    expect(factProblem('my seed is abandon ability able about above absent absorb abstract absurd abuse access accident', ['tools_mcp'], 0)).toMatch(/secret/);
+    expect(factProblem('wallet [12, 34, 255, 7, 0, 18, 99, 120, 3, 4, 5, 6, 7, 8, 9, 10, 11]', ['payments'], 0)).toMatch(/secret/);
+    expect(factProblem('prefers sk-learn for ML', ['developer_tools'], 0)).toBeNull();
   });
-  it('selects by category only, newest first, skipping superseded facts', () => {
-    const facts = [f('a', 'old', ['spending'], '2026-01-01T00:00:00Z'), f('b', 'new', ['spending', 'personal_life']), { ...f('c', 'gone', ['spending']), supersededBy: 'b' }, f('d', 'tools', ['tools_mcp'])];
+  it('selects by category only, newest first', () => {
+    const facts = [f('a', 'old', ['spending'], '2026-01-01T00:00:00Z'), f('b', 'new', ['spending', 'personal_life']), f('d', 'tools', ['tools_mcp'])];
     expect(factsFor(facts, ['payments', 'spending']).map((x) => x.id)).toEqual(['b', 'a']);
     expect(factsFor(facts, ['blockers'])).toEqual([]);
     expect(factsFor(undefined, ['spending'])).toEqual([]);

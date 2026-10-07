@@ -1,6 +1,6 @@
 // plugins/mcp/test/plugin.test.ts
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -239,7 +239,8 @@ describe('agent-survey MCP plugin', () => {
 
   it('records owner facts locally and hands only the matching categories to evaluate_campaign', async () => {
     const w = await world();
-    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    const dataDir = mkdtempSync(join(tmpdir(), 'as-'));
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir, agentToken: w.agentToken });
     await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 });
     expect((await call('remember_owner_fact', { fact: 'my password is hunter2', categories: ['spending'] })).isError).toBe(true);
     expect((await call('remember_owner_fact', { fact: 'my api key is sk-abc', categories: ['tools_mcp'] })).isError).toBe(true);
@@ -252,7 +253,12 @@ describe('agent-survey MCP plugin', () => {
     expect(json.ownerFacts.map((f: { text: string }) => f.text)).toEqual(['spends about $40 a month on AI tools']);
     expect(json.answeringRule).toMatch(/ownerFacts/);
     const listed = await call('list_owner_facts', {});
-    expect(listed.json.facts).toHaveLength(2); // the superseded fact is not listed
+    expect(listed.json.facts).toHaveLength(2); // the replaced fact is deleted
+    const stored = JSON.parse(readFileSync(join(dataDir, 'agent-survey.json'), 'utf8'));
+    expect(JSON.stringify(stored)).not.toContain('$20'); // ... from disk too, not just hidden
+    expect((await call('remember_owner_fact', { fact: 'pays by card', categories: ['payments'], replaces: 'nope' })).json.replaces).toMatch(/nothing was replaced/);
+    expect((await call('remember_owner_fact', { fact: 'my seed is abandon ability able about above absent absorb abstract absurd abuse access accident', categories: ['tools_mcp'] })).isError).toBe(true);
+    await call('forget_owner_fact', { id: (await call('list_owner_facts', { category: 'payments' })).json.facts[0].id });
     expect((await call('list_owner_facts', { category: 'tools_mcp' })).json.facts.map((f: { text: string }) => f.text)).toEqual(['runs the GitHub MCP server']);
     await call('forget_owner_fact', { id: listed.json.facts[0].id });
     expect((await call('list_owner_facts', {})).json.facts).toHaveLength(1);
@@ -267,7 +273,8 @@ describe('agent-survey MCP plugin', () => {
     const refused = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
     expect(refused.isError).toBe(true);
     expect(refused.text).toMatch(/ownerApproved/);
-    const ok = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true });
+    expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true, sources: { q1: 'guessed' } })).isError).toBe(true); // closed source list
+    const ok = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true, sources: { q1: 'checked', q2: 'inferred', q3: 'owner_told' } });
     expect(ok.isError).toBe(false);
     await w.srv.close();
   });

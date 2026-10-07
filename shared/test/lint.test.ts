@@ -408,13 +408,18 @@ describe('likert anchor helpers (web prefill)', () => {
 describe('looksLikeSecret (owner fact store)', () => {
   it('refuses credentials named or pasted in first-person text', () => {
     for (const t of ['my password is hunter2', 'my api key is sk-abc', 'token: 123abc', 'uses ghp_abcdEFGH1234',
-      'Bearer 9fK2xQ7mL4pR8vT1wZ3yB6nC5dE0gH2jAq', 'my seed phrase starts with apple', 'my PIN is 4321', 'OPENAI_API_KEY in .env']) {
+      'Bearer 9fK2xQ7mL4pR8vT1wZ3yB6nC5dE0gH2jAq', 'my seed phrase starts with apple', 'my PIN is 4321', 'OPENAI_API_KEY in .env',
+      'abandon ability able about above absent absorb abstract absurd abuse access accident',
+      'my seed is abandon ability able about above absent absorb abstract absurd abuse access accident',
+      'keypair [12, 34, 255, 7, 0, 18, 99, 120, 3, 4, 5, 6, 7, 8, 9, 10, 11]', 'sk-proj-abcdEFGH12']) {
       expect(looksLikeSecret(t), t).toBe(true);
     }
   });
   it('accepts ordinary facts about the owner and their tools', () => {
     for (const t of ['spends about $40 a month on AI tools', 'runs the GitHub MCP server', 'uses a password manager',
-      'pays for tools by card', 'asked a risk-free question', 'uses about 2 million tokens a month', 'works at a desk-heavy job']) {
+      'pays for tools by card', 'asked a risk-free question', 'uses about 2 million tokens a month', 'works at a desk-heavy job',
+      'uses Claude Code daily for refactoring work and code review tasks', 'prefers sk-learn for ML',
+      'likes quiet mornings coffee before work then long walks with dogs after lunch break', 'rated tools [1, 2, 3]']) {
       expect(looksLikeSecret(t), t).toBe(false);
     }
   });
