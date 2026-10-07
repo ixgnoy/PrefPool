@@ -42,8 +42,8 @@ describe('envelope', () => {
   it('v2 rejects tamper and swapped ids like v1', () => {
     const v2 = sealEnvelope(pk, cid, addr, { q1: 1 }, { sources: { q1: 'inferred' }, client: { name: 'x', version: '1' } });
     expect(() => openSealed(bytesToHex(sk), { ...v2, campaignId: 'dd'.repeat(32) })).toThrow();
-    expect(() => openSealed(bytesToHex(sk), { ...v2, v: 1 })).not.toThrow(); // version is not in the AAD; v1 reading drops meta
-    expect(openSealed(bytesToHex(sk), { ...v2, v: 1 }).meta).toBeNull();
+    // v is not in the AAD; meta comes from the sealed plaintext, so relabelling v2 as v1 cannot strip sources.
+    expect(openSealed(bytesToHex(sk), { ...v2, v: 1 }).meta).toEqual({ sources: { q1: 'inferred' }, client: { name: 'x', version: '1' } });
     expect(() => openSealed(bytesToHex(sk), { ...v2, v: 3 as 2 })).toThrow('unsupported envelope version');
   });
   it('drops malformed meta instead of failing (a hostile client must not break aggregation)', () => {
@@ -54,11 +54,26 @@ describe('envelope', () => {
       { sources: { q1: 5 }, client: { name: 'a', version: '1' } },
       { sources: {}, client: { name: 'a', version: '1', modelId: {} } },
       [],
+      { sources: {}, client: { name: 'a'.repeat(65), version: '1' } },
+      { sources: {}, client: { name: 'a', version: '1'.repeat(65) } },
+      { sources: {}, client: { name: 'a', version: '1', modelId: 'm'.repeat(65) } },
+      { sources: {}, client: { name: 'a<script>', version: '1' } },
+      { sources: {}, client: { name: 'a\nb', version: '1' } },
+      { sources: {}, client: { name: '', version: '1' } },
+      { sources: {}, client: { name: 'a', version: '1', modelId: 'm (x)' } },
+      { sources: {}, client: { name: 'unknown', version: '1' } },
+      { sources: {}, client: { name: 'other', version: '1' } },
+      { sources: {}, client: { name: 'Other', version: '1' } },
     ];
     for (const m of bad) {
       const env = sealEnvelope(pk, cid, addr, { q1: 1 }, m as never);
       expect(openSealed(bytesToHex(sk), env)).toEqual({ answers: { q1: 1 }, meta: null });
     }
+  });
+  it('keeps client strings up to 64 plain characters', () => {
+    const client = { name: 'a'.repeat(64), version: '1.2.3-beta+4', modelId: 'claude-opus-5-5@2026/10:x y_z' };
+    const env = sealEnvelope(pk, cid, addr, { q1: 1 }, { sources: {}, client });
+    expect(openSealed(bytesToHex(sk), env).meta).toEqual({ sources: {}, client });
   });
   it('a full v2 envelope (5 questions, model id) stays under 2.4 KB so a page of 10 fits 25 KB', () => {
     const long = 'Cm1NmUPngoFke9pc8zXsK2qebBEfPb76bS3gHfjMS2hN';

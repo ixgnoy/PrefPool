@@ -41,6 +41,11 @@ export function sealEnvelope(
 }
 
 const isStr = (x: unknown): x is string => typeof x === 'string';
+/** Client strings: short, plain characters (they become report bucket keys). */
+const CLIENT_STR = /^[\w.@\/:+ -]{1,64}$/;
+const isClientStr = (x: unknown): x is string => isStr(x) && CLIENT_STR.test(x);
+/** Bucket names clientCounts uses itself; a client claiming one must not merge into it. */
+const RESERVED_CLIENT_NAMES = new Set(['unknown', 'other']);
 const isPlainObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 
 /**
@@ -50,7 +55,8 @@ const isPlainObject = (x: unknown): x is Record<string, unknown> => typeof x ===
 function cleanMeta(raw: unknown): EnvelopeMeta | null {
   if (!isPlainObject(raw) || !isPlainObject(raw.sources) || !isPlainObject(raw.client)) return null;
   const { name, version, modelId } = raw.client;
-  if (!isStr(name) || !isStr(version) || (modelId !== undefined && !isStr(modelId))) return null;
+  if (!isClientStr(name) || !isClientStr(version) || (modelId !== undefined && !isClientStr(modelId))) return null;
+  if (RESERVED_CLIENT_NAMES.has(name.trim().toLowerCase())) return null;
   const entries = Object.entries(raw.sources);
   if (!entries.every(([, v]) => isStr(v))) return null;
   // Unknown tags are left out; sourceCounts then counts that question as unknown.
@@ -73,7 +79,8 @@ export function openSealed(recipientPrivHex: string, env: Envelope): { answers: 
   if (inner.campaignId !== env.campaignId || inner.respondentAddress !== env.respondentAddress) {
     throw new Error('envelope id mismatch');
   }
-  return { answers: inner.answers, meta: env.v === 2 ? cleanMeta(inner.meta) : null };
+  // Meta comes from the authenticated plaintext, not the outer (unauthenticated) v, so relabelling v2 as v1 can't strip it.
+  return { answers: inner.answers, meta: inner.meta !== undefined ? cleanMeta(inner.meta) : null };
 }
 
 /** Answers only (v1 and v2); for callers that don't need the meta. */
