@@ -192,14 +192,24 @@ describe('agent-survey MCP plugin', () => {
     expect(shown).toEqual(order.map((i) => canonical[i]));
     expect((await call('list_campaigns')).json[0].questions[0].options.map(stripMarks)).toEqual(shown); // same order on every call
     expect(json.campaign.questions[1].options).toBeUndefined(); // likert_5 untouched
-    const pos = shown.indexOf('Crypto wallet');
+    // The wallet is random per run, so pick a q1 option whose shown position differs from its canonical index:
+    // a missing mapping would then seal the wrong option on every run, not just most of them.
+    const pos = order.findIndex((canon, shownAt) => canon !== shownAt);
+    if (pos === -1) {
+      // Identity permutation for this wallet (1 in 24): nothing to map back on q1, so only the shown order is checked here.
+      expect(order).toEqual([0, 1, 2, 3]);
+    }
+    const q1 = pos === -1 ? 0 : pos;
+    const expected = { q1: order[q1]!, q2: 3, q3: 2 }; // q3: canonical index of "Over $100"
+    if (pos !== -1) expect(expected.q1).not.toBe(q1);
     const shown3: string[] = json.campaign.questions[2].options.map(stripMarks);
-    const r = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: pos, q2: 3, q3: shown3.indexOf('Over $100') } });
+    const r = await call('submit_answer', { campaignId: w.campaignId, answers: { q1, q2: 3, q3: shown3.indexOf('Over $100') } });
     expect(r.isError).toBe(false);
     const [row] = await w.deps.db.query<{ envelope: Envelope }>(`select envelope from envelopes where campaign_id = $1`, [w.campaignId]);
-    expect(openEnvelope(keys.encSk, row!.envelope)).toEqual({ q1: 1, q2: 3, q3: 2 }); // canonical indexes of "Crypto wallet" and "Over $100"
+    expect(openEnvelope(keys.encSk, row!.envelope)).toEqual(expected);
+    expect(canonical[expected.q1]).toBe(shown[q1]); // the sealed index names the option the agent picked
     const { copies } = (await request(w.app).get('/api/agents/mine/answer-copies').set({ Authorization: `Bearer ${w.session}` })).body;
-    expect(openEnvelope(ownerKey.privateKey, copies[0].envelope)).toEqual({ q1: 1, q2: 3, q3: 2 });
+    expect(openEnvelope(ownerKey.privateKey, copies[0].envelope)).toEqual(expected);
     await w.srv.close();
   });
 

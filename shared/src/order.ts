@@ -10,6 +10,7 @@ export function optionOrder(seedKey: string, n: number): number[] {
   const order = Array.from({ length: n }, (_, i) => i);
   const hex = sha256Hex(seedKey);
   for (let i = n - 1; i > 0; i--) {
+    // 4 hex chars per swap; windows wrap and repeat beyond 15 options (screening caps options well below that).
     const at = (i * 4) % 60;
     const j = parseInt(hex.slice(at, at + 4), 16) % (i + 1);
     [order[i], order[j]] = [order[j]!, order[i]!];
