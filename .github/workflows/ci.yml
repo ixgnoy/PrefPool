@@ -1,0 +1,106 @@
+name: CI
+
+# On main, CI runs as the first stage of deploy.yml (workflow_call), so pushes to main aren't tested twice.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: TypeScript (typecheck + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # No secrets: every suite runs offline (PGlite, in-memory MCP, OfflineEvaluator).
+      # Tests that need devnet or Postgres skip themselves without env vars.
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 22: vitest workers crash natively on Node 24.15 (see docs/status-sync/LOG.md).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck all workspaces
+        run: npm run typecheck --workspaces --if-present
+
+      - name: Test @as/shared
+        run: npm test -w @as/shared
+      - name: Test @as/chain
+        run: npm test -w @as/chain
+      - name: Test @as/server
+        run: npm test -w @as/server
+      - name: Test @as/cre-runner
+        run: npm test -w @as/cre-runner
+      - name: Test @as/web
+        run: npm test -w @as/web
+      - name: Test @as/agent-survey-mcp
+        run: npm test -w @as/agent-survey-mcp
+
+  solana:
+    name: Solana escrow program
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: solana
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cache/solana
+            solana/target
+          key: solana-${{ hashFiles('solana/Cargo.lock', 'solana/rust-toolchain.toml') }}
+      - name: Install Solana CLI (Agave 3.1.10)
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.10/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      # The LiteSVM tests load target/deploy/campaign_escrow.so, so build the SBF binary first.
+      - run: cargo build-sbf --manifest-path programs/campaign_escrow/Cargo.toml
+      - run: cargo test
+
+  aiken:
+    name: Aiken escrow validator
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aiken-lang/setup-aiken@v1
+        with:
+          version: v1.1.24
+      - run: aiken check
+
+  foundry:
+    name: EVM ReportRegistry
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: evm
+    steps:
+      # forge-std is vendored in evm/lib, so no submodules are needed.
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - run: forge test -vv

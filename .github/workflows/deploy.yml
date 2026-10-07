@@ -1,0 +1,170 @@
+name: Deploy
+
+# main → CI → Supabase migrations → Railway (server + facilitator) and Vercel (web) → smoke test on the live URLs.
+# One-time setup (Railway project, Vercel project, GitHub secrets and variables): scripts/deploy/bootstrap.sh,
+# documented in docs/implementation/DEPLOY.md. Until it has run, the deploy stages are skipped with a warning.
+# Railway is linked only while the repo variable RAILWAY_ENABLED is 'true'; otherwise pushes deploy web only.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'research/**'
+      - 'hackathon docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+# Never run two deploys at once, and never cancel one halfway (a half-applied migration or deploy is worse than a queue).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+# Explicit bash = -eo pipefail, so `smoke.mjs | tee` still fails the job when a check fails.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  preflight:
+    name: Deploy configured?
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+      railway: ${{ steps.check.outputs.railway }}
+    steps:
+      - id: check
+        env:
+          RAILWAY_ENABLED: ${{ vars.RAILWAY_ENABLED }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          FACILITATOR_TOKEN: ${{ secrets.FACILITATOR_TOKEN }}
+          SERVER_URL: ${{ vars.SERVER_URL }}
+          WEB_URL: ${{ vars.WEB_URL }}
+          FACILITATOR_URL: ${{ vars.FACILITATOR_URL }}
+        run: |
+          names=(VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID SUPABASE_DB_URL WEB_URL)
+          # Railway settings are only required while Railway is linked (RAILWAY_ENABLED=true).
+          if [ "$RAILWAY_ENABLED" = "true" ]; then
+            names+=(RAILWAY_TOKEN FACILITATOR_TOKEN SERVER_URL FACILITATOR_URL)
+            echo "railway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Railway is unlinked (RAILWAY_ENABLED is not 'true'): this run deploys web only. Relink: gh variable set RAILWAY_ENABLED --body true"
+            echo "railway=false" >> "$GITHUB_OUTPUT"
+          fi
+          missing=""; count=0
+          for n in "${names[@]}"; do if [ -z "${!n}" ]; then missing="$missing $n"; count=$((count + 1)); fi; done
+          if [ "$count" -eq "${#names[@]}" ]; then
+            echo "::warning::Deploy is not configured yet (no secrets or variables). Run scripts/deploy/bootstrap.sh; see docs/implementation/DEPLOY.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$missing" ]; then
+            echo "::error::Deploy is partly configured. Missing:$missing"
+            exit 1
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  migrate:
+    name: Supabase migrations
+    needs: [ci, preflight]
+    if: needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+      - name: Pending migrations
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Apply
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+  railway:
+    name: Railway (${{ matrix.service }})
+    needs: [preflight, migrate]
+    if: needs.preflight.outputs.railway == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [server, facilitator]
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g @railway/cli@5.63.1
+      # Both services build this repo with railway.json; SERVICE_ROLE (a service variable) picks what starts.
+      # --ci streams the build log and fails the job if the build fails.
+      - run: railway up --ci --service "${{ matrix.service }}" --message "${{ github.sha }}"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  vercel:
+    name: Vercel (web)
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g vercel@48.12.1
+      # Deploy without git metadata. With .git present the CLI sends the commit author, and the Hobby team blocks any
+      # commit whose author isn't a team member ("<email> attempted to deploy … but they're not a member of the team"),
+      # so teammates' pushes hung at "Building..." until the job timed out. Without it the deployment belongs to the
+      # VERCEL_TOKEN owner, whoever pushed. (Verified: teammate commit 903666c exported without .git → READY.)
+      - name: Drop git metadata
+        run: rm -rf .git
+      # Uploads the repo; Vercel builds it with the project's Root Directory (web) and its env (NEXT_PUBLIC_SERVER_URL).
+      - id: deploy
+        run: |
+          url=$(timeout 600 vercel deploy --prod --yes --token "$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Vercel deployment: $url"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  smoke:
+    name: Smoke test (live)
+    needs: [preflight, railway, vercel]
+    # Runs after a web-only deploy too (railway skipped while unlinked), but never after a failed deploy.
+    if: always() && needs.vercel.result == 'success' && (needs.railway.result == 'success' || needs.railway.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: ${{ vars.WEB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/deploy/smoke.mjs | tee smoke.txt
+        env:
+          # Empty while Railway is unlinked: smoke.mjs then checks the web app only.
+          SERVER_URL: ${{ needs.preflight.outputs.railway == 'true' && vars.SERVER_URL || '' }}
+          WEB_URL: ${{ vars.WEB_URL }}
+          FACILITATOR_URL: ${{ needs.preflight.outputs.railway == 'true' && vars.FACILITATOR_URL || '' }}
+          FACILITATOR_TOKEN: ${{ secrets.FACILITATOR_TOKEN }}
+          SMOKE_TIMEOUT_S: '300'
+      - if: always()
+        run: |
+          {
+            echo "### Deployed ${GITHUB_SHA::7}"
+            echo "- Web: ${{ vars.WEB_URL }}"
+            echo "- API: ${{ vars.SERVER_URL }}"
+            echo "- Facilitator: ${{ vars.FACILITATOR_URL }}"
+            echo '```'; cat smoke.txt 2>/dev/null; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,28 @@
+{
+  "name": "@as/chain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p .",
+    "smoke:devnet": "tsx scripts/devnet-smoke.ts"
+  },
+  "dependencies": {
+    "@as/shared": "*",
+    "@noble/hashes": "2.4.0",
+    "@solana/web3.js": "1.98.4",
+    "bs58": "6.0.0"
+  },
+  "devDependencies": {
+    "@noble/curves": "2.4.0",
+    "@scure/base": "2.4.0",
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
+  }
+}

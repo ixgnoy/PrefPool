@@ -1,0 +1,22 @@
+# Vercel CLI uploads (scripts/deploy/bootstrap.sh, deploy.yml) ignore these. Secrets first: never upload them.
+.env
+.env.*
+!.env.example
+**/.env
+cre/secrets.yaml
+# local tooling and private notes
+/research/
+.claude/
+.agents/
+.playwright-mcp/
+.playwright-cli/
+skills-lock.json
+# build output and dependencies (Vercel installs and builds itself)
+node_modules/
+**/node_modules/
+.next/
+contracts/build/
+evm/out/
+evm/cache/
+evm/broadcast/
+*.wasm

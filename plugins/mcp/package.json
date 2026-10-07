@@ -1,0 +1,36 @@
+{
+  "name": "@as/agent-survey-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agent-survey-mcp": "dist/server.mjs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p .",
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node20 --outfile=../claude-code/dist/server.mjs --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\""
+  },
+  "dependencies": {
+    "@as/shared": "*",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@noble/curves": "2.4.0",
+    "@scure/base": "2.4.0",
+    "@solana/kit": "5.5.1",
+    "@solana/web3.js": "1.98.4",
+    "@x402/core": "2.28.0",
+    "@x402/fetch": "2.28.0",
+    "@x402/svm": "2.28.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@as/chain": "*",
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^22",
+    "@types/supertest": "^6.0.3",
+    "esbuild": "^0.25.0",
+    "supertest": "^7.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
+  }
+}

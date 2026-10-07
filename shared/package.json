@@ -1,0 +1,16 @@
+{
+  "name": "@as/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc -p ." },
+  "dependencies": {
+    "@noble/ciphers": "2.4.0",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@scure/base": "2.4.0",
+    "canonicalize": "2.1.0"
+  },
+  "devDependencies": { "typescript": "^5.7.0", "vitest": "^3.2.0" }
+}

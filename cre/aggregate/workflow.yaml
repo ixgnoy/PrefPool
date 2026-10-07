@@ -1,0 +1,26 @@
+# cre/aggregate/workflow.yaml
+staging-settings:
+  user-workflow:
+    workflow-name: "agent-survey-aggregate-staging"
+    deployment-registry: "private"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.staging.json"
+    secrets-path: "../secrets.yaml"
+production-settings:
+  user-workflow:
+    workflow-name: "agent-survey-aggregate-production"
+    deployment-registry: "private"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.production.json"
+    secrets-path: "../secrets.yaml"
+# Task 8.13: same workflow, decrypt/validate/aggregate/sign inside a Confidential Workflow enclave (handlerInTee).
+confidential-settings:
+  user-workflow:
+    workflow-name: "agent-survey-aggregate-confidential"
+    deployment-registry: "private"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.confidential.json"
+    secrets-path: "../secrets.yaml"

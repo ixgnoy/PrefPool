@@ -1,0 +1,9 @@
+{
+  "platformUrl": "http://localhost:4000",
+  "solanaRpcUrl": "https://api.devnet.solana.com",
+  "programId": "Cm1NmUPngoFke9pc8zXsK2qebBEfPb76bS3gHfjMS2hN",
+  "chainSelectorName": "ethereum-testnet-sepolia-base-1",
+  "registryAddress": "0xc9EA0e843639DF149A0A7E628ad0818d8f0bDfe1",
+  "gasLimit": "200000",
+  "evmBroadcast": true
+}

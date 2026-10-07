@@ -1,0 +1,5 @@
+# cre/.gitignore
+.env
+node_modules/
+*.wasm
+aggregate/out.js

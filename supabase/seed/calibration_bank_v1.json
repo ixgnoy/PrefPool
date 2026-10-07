@@ -1,0 +1,3304 @@
+{
+ "bankVersion": 1,
+ "questions": [
+  {
+   "id": "cb-001",
+   "text": "Are you a morning person or a night owl?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.35,
+    0.35,
+    0.3
+   ],
+   "options": [
+    "Morning person",
+    "Night owl",
+    "Somewhere in between"
+   ]
+  },
+  {
+   "id": "cb-002",
+   "text": "How many hours do you usually sleep on a weeknight?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.2,
+    0.38,
+    0.32,
+    0.1
+   ],
+   "options": [
+    "Under 6",
+    "6-7",
+    "7-8",
+    "More than 8"
+   ]
+  },
+  {
+   "id": "cb-003",
+   "text": "How often do you exercise in a typical week?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.3,
+    0.35,
+    0.25,
+    0.1
+   ],
+   "options": [
+    "Rarely",
+    "1-2 times",
+    "3-4 times",
+    "5+ times"
+   ]
+  },
+  {
+   "id": "cb-004",
+   "text": "Do you make your bed every morning?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.35,
+    0.35,
+    0.3
+   ],
+   "options": [
+    "Always",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-005",
+   "text": "How do you usually get to work or school?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.4,
+    0.3,
+    0.12,
+    0.18
+   ],
+   "options": [
+    "Car",
+    "Public transport",
+    "Walk or bike",
+    "Work from home"
+   ]
+  },
+  {
+   "id": "cb-006",
+   "text": "How much do you enjoy planning your week ahead?",
+   "type": "likert_5",
+   "category": "habits",
+   "prior": [
+    0.12,
+    0.18,
+    0.3,
+    0.25,
+    0.15
+   ]
+  },
+  {
+   "id": "cb-007",
+   "text": "Do you keep a to-do list?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.2,
+    0.35,
+    0.3,
+    0.15
+   ],
+   "options": [
+    "Paper",
+    "An app",
+    "In my head",
+    "No list"
+   ]
+  },
+  {
+   "id": "cb-008",
+   "text": "How tidy is your desk right now?",
+   "type": "likert_5",
+   "category": "habits",
+   "prior": [
+    0.12,
+    0.2,
+    0.3,
+    0.25,
+    0.13
+   ]
+  },
+  {
+   "id": "cb-009",
+   "text": "When do you usually do your grocery shopping?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.25,
+    0.35,
+    0.25,
+    0.15
+   ],
+   "options": [
+    "Weekday evenings",
+    "Weekends",
+    "Whenever I run out",
+    "Online delivery"
+   ]
+  },
+  {
+   "id": "cb-010",
+   "text": "How often do you cook dinner at home?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.12,
+    0.25,
+    0.35,
+    0.28
+   ],
+   "options": [
+    "Almost never",
+    "1-2 nights a week",
+    "3-5 nights",
+    "Almost every night"
+   ]
+  },
+  {
+   "id": "cb-011",
+   "text": "Do you snooze your alarm?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.3,
+    0.3,
+    0.28,
+    0.12
+   ],
+   "options": [
+    "Never",
+    "Once",
+    "Several times",
+    "I don't use an alarm"
+   ]
+  },
+  {
+   "id": "cb-012",
+   "text": "How much do you enjoy spending time alone?",
+   "type": "likert_5",
+   "category": "habits",
+   "prior": [
+    0.05,
+    0.12,
+    0.28,
+    0.32,
+    0.23
+   ]
+  },
+  {
+   "id": "cb-013",
+   "text": "Where do you prefer to spend a free Saturday?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.32,
+    0.25,
+    0.28,
+    0.15
+   ],
+   "options": [
+    "At home",
+    "Outdoors",
+    "With friends in town",
+    "Visiting family"
+   ]
+  },
+  {
+   "id": "cb-014",
+   "text": "How often do you read books for fun?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.25,
+    0.4,
+    0.22,
+    0.13
+   ],
+   "options": [
+    "Never",
+    "A few a year",
+    "About one a month",
+    "Several a month"
+   ]
+  },
+  {
+   "id": "cb-015",
+   "text": "Do you prefer showers in the morning or evening?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.5,
+    0.38,
+    0.12
+   ],
+   "options": [
+    "Morning",
+    "Evening",
+    "Both"
+   ]
+  },
+  {
+   "id": "cb-016",
+   "text": "How punctual are you for meetings with friends?",
+   "type": "likert_5",
+   "category": "habits",
+   "prior": [
+    0.05,
+    0.1,
+    0.25,
+    0.35,
+    0.25
+   ]
+  },
+  {
+   "id": "cb-017",
+   "text": "How do you usually spend your lunch break?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.35,
+    0.25,
+    0.28,
+    0.12
+   ],
+   "options": [
+    "Eat at my desk",
+    "Eat out",
+    "Eat with colleagues or friends",
+    "Skip lunch"
+   ]
+  },
+  {
+   "id": "cb-018",
+   "text": "How many cups of water do you drink a day?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.3,
+    0.4,
+    0.2,
+    0.1
+   ],
+   "options": [
+    "1-3",
+    "4-6",
+    "7-8",
+    "More than 8"
+   ]
+  },
+  {
+   "id": "cb-019",
+   "text": "Do you nap during the day?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.45,
+    0.25,
+    0.18,
+    0.12
+   ],
+   "options": [
+    "Never",
+    "Weekends only",
+    "A few times a week",
+    "Daily"
+   ]
+  },
+  {
+   "id": "cb-020",
+   "text": "How much do you like trying new hobbies?",
+   "type": "likert_5",
+   "category": "habits",
+   "prior": [
+    0.05,
+    0.12,
+    0.3,
+    0.32,
+    0.21
+   ]
+  },
+  {
+   "id": "cb-021",
+   "text": "How do you prefer to unwind after a long day?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.35,
+    0.15,
+    0.15,
+    0.15,
+    0.2
+   ],
+   "options": [
+    "TV or streaming",
+    "Exercise",
+    "Gaming",
+    "Reading",
+    "Chatting with someone"
+   ]
+  },
+  {
+   "id": "cb-022",
+   "text": "How often do you meditate or do breathing exercises?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.5,
+    0.28,
+    0.12,
+    0.1
+   ],
+   "options": [
+    "Never",
+    "Occasionally",
+    "Weekly",
+    "Daily"
+   ]
+  },
+  {
+   "id": "cb-023",
+   "text": "How many alarms do you set to wake up?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.12,
+    0.48,
+    0.3,
+    0.1
+   ],
+   "options": [
+    "None",
+    "One",
+    "Two or three",
+    "More than three"
+   ]
+  },
+  {
+   "id": "cb-024",
+   "text": "Do you prefer a fixed daily routine or variety?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.2,
+    0.4,
+    0.3,
+    0.1
+   ],
+   "options": [
+    "Fixed routine",
+    "Mostly routine",
+    "Mostly variety",
+    "Total variety"
+   ]
+  },
+  {
+   "id": "cb-025",
+   "text": "How much do you enjoy household chores?",
+   "type": "likert_5",
+   "category": "habits",
+   "prior": [
+    0.25,
+    0.3,
+    0.28,
+    0.12,
+    0.05
+   ]
+  },
+  {
+   "id": "cb-026",
+   "text": "Do you track your steps or fitness with a device?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.3,
+    0.2,
+    0.5
+   ],
+   "options": [
+    "Yes, every day",
+    "Sometimes",
+    "No"
+   ]
+  },
+  {
+   "id": "cb-027",
+   "text": "How often do you call (not text) friends or family?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.2,
+    0.38,
+    0.22,
+    0.2
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Monthly",
+    "Rarely"
+   ]
+  },
+  {
+   "id": "cb-028",
+   "text": "How early do you usually arrive at the airport?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.12,
+    0.3,
+    0.45,
+    0.13
+   ],
+   "options": [
+    "Just in time",
+    "1 hour before",
+    "2 hours before",
+    "3+ hours before"
+   ]
+  },
+  {
+   "id": "cb-029",
+   "text": "How do you feel about early-morning workouts?",
+   "type": "likert_5",
+   "category": "habits",
+   "prior": [
+    0.25,
+    0.22,
+    0.25,
+    0.18,
+    0.1
+   ]
+  },
+  {
+   "id": "cb-030",
+   "text": "Do you write in a journal?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.08,
+    0.15,
+    0.27,
+    0.5
+   ],
+   "options": [
+    "Daily",
+    "Sometimes",
+    "Tried and stopped",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-031",
+   "text": "How often do you clean out your wardrobe?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.2,
+    0.35,
+    0.35,
+    0.1
+   ],
+   "options": [
+    "Every season",
+    "Once a year",
+    "Rarely",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-032",
+   "text": "How many pets would you ideally like to have?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.3,
+    0.35,
+    0.25,
+    0.1
+   ],
+   "options": [
+    "None",
+    "One",
+    "Two",
+    "Three or more"
+   ]
+  },
+  {
+   "id": "cb-033",
+   "text": "How long do you usually spend getting ready in the morning?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.25,
+    0.4,
+    0.28,
+    0.07
+   ],
+   "options": [
+    "Under 15 min",
+    "15-30 min",
+    "30-60 min",
+    "Over an hour"
+   ]
+  },
+  {
+   "id": "cb-034",
+   "text": "How do you prefer to keep track of birthdays?",
+   "type": "single_choice",
+   "category": "habits",
+   "prior": [
+    0.35,
+    0.2,
+    0.25,
+    0.2
+   ],
+   "options": [
+    "Calendar app",
+    "Social media reminders",
+    "Memory",
+    "I often forget"
+   ]
+  },
+  {
+   "id": "cb-035",
+   "text": "Coffee or tea in the morning?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.45,
+    0.25,
+    0.12,
+    0.18
+   ],
+   "options": [
+    "Coffee",
+    "Tea",
+    "Both",
+    "Neither"
+   ]
+  },
+  {
+   "id": "cb-036",
+   "text": "How spicy do you like your food?",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.1,
+    0.15,
+    0.25,
+    0.28,
+    0.22
+   ]
+  },
+  {
+   "id": "cb-037",
+   "text": "Which cuisine would you pick for a dinner out?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.32,
+    0.24,
+    0.12,
+    0.12,
+    0.2
+   ],
+   "options": [
+    "Asian",
+    "Italian",
+    "Middle Eastern",
+    "Mexican",
+    "Local food"
+   ]
+  },
+  {
+   "id": "cb-038",
+   "text": "Sweet or savoury breakfast?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.3,
+    0.42,
+    0.28
+   ],
+   "options": [
+    "Sweet",
+    "Savoury",
+    "Depends on the day"
+   ]
+  },
+  {
+   "id": "cb-039",
+   "text": "How often do you order food delivery?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.15,
+    0.35,
+    0.3,
+    0.2
+   ],
+   "options": [
+    "Never",
+    "A few times a month",
+    "Weekly",
+    "Several times a week"
+   ]
+  },
+  {
+   "id": "cb-040",
+   "text": "How do you like your eggs?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.28,
+    0.27,
+    0.18,
+    0.17,
+    0.1
+   ],
+   "options": [
+    "Fried",
+    "Scrambled",
+    "Boiled",
+    "Omelette",
+    "I don't eat eggs"
+   ]
+  },
+  {
+   "id": "cb-041",
+   "text": "How much do you enjoy cooking?",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.08,
+    0.15,
+    0.27,
+    0.28,
+    0.22
+   ]
+  },
+  {
+   "id": "cb-042",
+   "text": "Do you eat breakfast on weekdays?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.35,
+    0.25,
+    0.22,
+    0.18
+   ],
+   "options": [
+    "Always",
+    "Usually",
+    "Rarely",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-043",
+   "text": "Which dessert would you choose?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.28,
+    0.22,
+    0.15,
+    0.2,
+    0.15
+   ],
+   "options": [
+    "Ice cream",
+    "Cake",
+    "Fruit",
+    "Chocolate",
+    "I skip dessert"
+   ]
+  },
+  {
+   "id": "cb-044",
+   "text": "How adventurous are you with new foods?",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.06,
+    0.14,
+    0.3,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "id": "cb-045",
+   "text": "Rice, noodles or bread with a main meal?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.4,
+    0.2,
+    0.22,
+    0.18
+   ],
+   "options": [
+    "Rice",
+    "Noodles",
+    "Bread",
+    "Potatoes"
+   ]
+  },
+  {
+   "id": "cb-046",
+   "text": "How often do you eat meat?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.3,
+    0.35,
+    0.25,
+    0.1
+   ],
+   "options": [
+    "Every day",
+    "Most days",
+    "Occasionally",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-047",
+   "text": "Which snack do you reach for first?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.25,
+    0.18,
+    0.2,
+    0.2,
+    0.17
+   ],
+   "options": [
+    "Chips",
+    "Nuts",
+    "Fruit",
+    "Chocolate",
+    "Biscuits"
+   ]
+  },
+  {
+   "id": "cb-048",
+   "text": "How do you take your coffee?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.22,
+    0.3,
+    0.28,
+    0.2
+   ],
+   "options": [
+    "Black",
+    "With milk",
+    "With milk and sugar",
+    "I don't drink coffee"
+   ]
+  },
+  {
+   "id": "cb-049",
+   "text": "How much do you care about eating healthy?",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.05,
+    0.12,
+    0.3,
+    0.33,
+    0.2
+   ]
+  },
+  {
+   "id": "cb-050",
+   "text": "Fast food: how often?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.15,
+    0.4,
+    0.32,
+    0.13
+   ],
+   "options": [
+    "Never",
+    "Monthly",
+    "Weekly",
+    "Several times a week"
+   ]
+  },
+  {
+   "id": "cb-051",
+   "text": "Favourite fruit among these?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.25,
+    0.18,
+    0.2,
+    0.2,
+    0.17
+   ],
+   "options": [
+    "Mango",
+    "Banana",
+    "Apple",
+    "Berries",
+    "Watermelon"
+   ]
+  },
+  {
+   "id": "cb-052",
+   "text": "Do you drink sparkling or still water?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.6,
+    0.12,
+    0.28
+   ],
+   "options": [
+    "Still",
+    "Sparkling",
+    "Either"
+   ]
+  },
+  {
+   "id": "cb-053",
+   "text": "How often do you try a new restaurant?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.25,
+    0.35,
+    0.28,
+    0.12
+   ],
+   "options": [
+    "Rarely",
+    "Every few months",
+    "Monthly",
+    "Weekly"
+   ]
+  },
+  {
+   "id": "cb-054",
+   "text": "Pizza topping you'd pick?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.18,
+    0.3,
+    0.2,
+    0.12,
+    0.2
+   ],
+   "options": [
+    "Cheese only",
+    "Pepperoni",
+    "Vegetables",
+    "Seafood",
+    "Pineapple"
+   ]
+  },
+  {
+   "id": "cb-055",
+   "text": "How much do you enjoy street food?",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.04,
+    0.08,
+    0.2,
+    0.33,
+    0.35
+   ]
+  },
+  {
+   "id": "cb-056",
+   "text": "Do you cook from recipes or improvise?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.15,
+    0.3,
+    0.38,
+    0.17
+   ],
+   "options": [
+    "Always recipes",
+    "Mostly recipes",
+    "Mostly improvise",
+    "Always improvise"
+   ]
+  },
+  {
+   "id": "cb-057",
+   "text": "Bubble tea: how often?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.25,
+    0.38,
+    0.25,
+    0.12
+   ],
+   "options": [
+    "Never",
+    "Occasionally",
+    "Weekly",
+    "Several times a week"
+   ]
+  },
+  {
+   "id": "cb-058",
+   "text": "How hungry are you usually at breakfast?",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.2,
+    0.22,
+    0.28,
+    0.2,
+    0.1
+   ]
+  },
+  {
+   "id": "cb-059",
+   "text": "Chocolate preference?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.3,
+    0.45,
+    0.15,
+    0.1
+   ],
+   "options": [
+    "Dark",
+    "Milk",
+    "White",
+    "Don't like chocolate"
+   ]
+  },
+  {
+   "id": "cb-060",
+   "text": "Do you bring lunch from home?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.22,
+    0.28,
+    0.3,
+    0.2
+   ],
+   "options": [
+    "Every day",
+    "A few days a week",
+    "Rarely",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-061",
+   "text": "Soup for dinner sounds…",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.12,
+    0.2,
+    0.3,
+    0.23,
+    0.15
+   ]
+  },
+  {
+   "id": "cb-062",
+   "text": "Which drink with dinner?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.42,
+    0.2,
+    0.12,
+    0.18,
+    0.08
+   ],
+   "options": [
+    "Water",
+    "Soft drink",
+    "Juice",
+    "Tea",
+    "Coffee"
+   ]
+  },
+  {
+   "id": "cb-063",
+   "text": "How do you like your steak (if you eat it)?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.15,
+    0.4,
+    0.25,
+    0.2
+   ],
+   "options": [
+    "Rare",
+    "Medium",
+    "Well done",
+    "I don't eat steak"
+   ]
+  },
+  {
+   "id": "cb-064",
+   "text": "How often do you snack between meals?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.12,
+    0.38,
+    0.32,
+    0.18
+   ],
+   "options": [
+    "Never",
+    "Once a day",
+    "Twice a day",
+    "Constantly"
+   ]
+  },
+  {
+   "id": "cb-065",
+   "text": "Home-cooked or restaurant for a celebration?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.3,
+    0.5,
+    0.2
+   ],
+   "options": [
+    "Home-cooked",
+    "Restaurant",
+    "Either"
+   ]
+  },
+  {
+   "id": "cb-066",
+   "text": "How do you feel about cilantro (coriander)?",
+   "type": "likert_5",
+   "category": "food",
+   "prior": [
+    0.15,
+    0.12,
+    0.25,
+    0.25,
+    0.23
+   ]
+  },
+  {
+   "id": "cb-067",
+   "text": "Ice in your drinks?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.4,
+    0.38,
+    0.22
+   ],
+   "options": [
+    "Lots",
+    "A little",
+    "None"
+   ]
+  },
+  {
+   "id": "cb-068",
+   "text": "Favourite way to eat potatoes?",
+   "type": "single_choice",
+   "category": "food",
+   "prior": [
+    0.3,
+    0.18,
+    0.22,
+    0.15,
+    0.15
+   ],
+   "options": [
+    "Fries",
+    "Mashed",
+    "Roasted",
+    "Chips (crisps)",
+    "Baked"
+   ]
+  },
+  {
+   "id": "cb-069",
+   "text": "Do you prefer shopping online or in stores?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.42,
+    0.25,
+    0.33
+   ],
+   "options": [
+    "Online",
+    "In stores",
+    "Both equally"
+   ]
+  },
+  {
+   "id": "cb-070",
+   "text": "How often do you buy clothes?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.2,
+    0.38,
+    0.27,
+    0.15
+   ],
+   "options": [
+    "Monthly or more",
+    "Every few months",
+    "Twice a year",
+    "Rarely"
+   ]
+  },
+  {
+   "id": "cb-071",
+   "text": "Do you read reviews before buying something over 50 USD?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.45,
+    0.3,
+    0.18,
+    0.07
+   ],
+   "options": [
+    "Always",
+    "Usually",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-072",
+   "text": "How much do you enjoy hunting for deals?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.06,
+    0.12,
+    0.26,
+    0.3,
+    0.26
+   ]
+  },
+  {
+   "id": "cb-073",
+   "text": "Brand or price: what matters more for electronics?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.3,
+    0.35,
+    0.35
+   ],
+   "options": [
+    "Brand",
+    "Price",
+    "Equal"
+   ]
+  },
+  {
+   "id": "cb-074",
+   "text": "How do you usually pay in shops?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.15,
+    0.35,
+    0.28,
+    0.22
+   ],
+   "options": [
+    "Cash",
+    "Card",
+    "Phone wallet",
+    "QR code"
+   ]
+  },
+  {
+   "id": "cb-075",
+   "text": "How often do you return online purchases?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.25,
+    0.45,
+    0.22,
+    0.08
+   ],
+   "options": [
+    "Never",
+    "Rarely",
+    "Sometimes",
+    "Often"
+   ]
+  },
+  {
+   "id": "cb-076",
+   "text": "Do you make shopping lists?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.3,
+    0.28,
+    0.27,
+    0.15
+   ],
+   "options": [
+    "Always",
+    "Usually",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-077",
+   "text": "How much do you care about sustainable products?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.08,
+    0.14,
+    0.32,
+    0.28,
+    0.18
+   ]
+  },
+  {
+   "id": "cb-078",
+   "text": "Impulse buys: how often?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.35,
+    0.38,
+    0.2,
+    0.07
+   ],
+   "options": [
+    "Rarely",
+    "Monthly",
+    "Weekly",
+    "Several times a week"
+   ]
+  },
+  {
+   "id": "cb-079",
+   "text": "Second-hand clothes?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.2,
+    0.4,
+    0.4
+   ],
+   "options": [
+    "Love them",
+    "Sometimes",
+    "Not for me"
+   ]
+  },
+  {
+   "id": "cb-080",
+   "text": "Where do you buy most of your electronics?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.48,
+    0.25,
+    0.17,
+    0.1
+   ],
+   "options": [
+    "Big online marketplace",
+    "Brand store",
+    "Local shop",
+    "Second-hand"
+   ]
+  },
+  {
+   "id": "cb-081",
+   "text": "How long do you research before a big purchase?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.12,
+    0.3,
+    0.38,
+    0.2
+   ],
+   "options": [
+    "Minutes",
+    "A few hours",
+    "Days",
+    "Weeks"
+   ]
+  },
+  {
+   "id": "cb-082",
+   "text": "How loyal are you to your favourite brands?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.06,
+    0.14,
+    0.34,
+    0.3,
+    0.16
+   ]
+  },
+  {
+   "id": "cb-083",
+   "text": "Do you use buy-now-pay-later services?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.1,
+    0.2,
+    0.15,
+    0.55
+   ],
+   "options": [
+    "Often",
+    "Sometimes",
+    "Tried once",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-084",
+   "text": "How do you feel about shopping malls?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.1,
+    0.18,
+    0.32,
+    0.25,
+    0.15
+   ]
+  },
+  {
+   "id": "cb-085",
+   "text": "Subscription boxes (snacks, beauty, etc.)?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.12,
+    0.25,
+    0.63
+   ],
+   "options": [
+    "Have one now",
+    "Had one before",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-086",
+   "text": "Do you wait for sales to buy things you need?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.15,
+    0.3,
+    0.38,
+    0.17
+   ],
+   "options": [
+    "Always",
+    "Often",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-087",
+   "text": "Favourite thing to splurge on?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.25,
+    0.18,
+    0.18,
+    0.24,
+    0.15
+   ],
+   "options": [
+    "Food",
+    "Clothes",
+    "Gadgets",
+    "Travel",
+    "Hobbies"
+   ]
+  },
+  {
+   "id": "cb-088",
+   "text": "How often do you shop for groceries?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.1,
+    0.32,
+    0.43,
+    0.15
+   ],
+   "options": [
+    "Daily",
+    "2-3 times a week",
+    "Weekly",
+    "Every two weeks"
+   ]
+  },
+  {
+   "id": "cb-089",
+   "text": "Do you collect loyalty points?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.25,
+    0.45,
+    0.3
+   ],
+   "options": [
+    "Yes, many programs",
+    "A few",
+    "No"
+   ]
+  },
+  {
+   "id": "cb-090",
+   "text": "How much do packaging and unboxing matter to you?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.2,
+    0.25,
+    0.3,
+    0.17,
+    0.08
+   ]
+  },
+  {
+   "id": "cb-091",
+   "text": "Gift cards as presents?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.28,
+    0.5,
+    0.22
+   ],
+   "options": [
+    "Love giving them",
+    "Prefer a real gift",
+    "Prefer cash"
+   ]
+  },
+  {
+   "id": "cb-092",
+   "text": "How do you feel about livestream shopping?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.35,
+    0.25,
+    0.22,
+    0.12,
+    0.06
+   ]
+  },
+  {
+   "id": "cb-093",
+   "text": "Which do you buy most often online?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.3,
+    0.18,
+    0.2,
+    0.2,
+    0.12
+   ],
+   "options": [
+    "Clothes",
+    "Electronics",
+    "Groceries",
+    "Home goods",
+    "Books"
+   ]
+  },
+  {
+   "id": "cb-094",
+   "text": "Window shopping: fun or waste of time?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.18,
+    0.2,
+    0.28,
+    0.2,
+    0.14
+   ]
+  },
+  {
+   "id": "cb-095",
+   "text": "How often do you compare prices across sites?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.28,
+    0.32,
+    0.3,
+    0.1
+   ],
+   "options": [
+    "Always",
+    "Often",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-096",
+   "text": "Shopping alone or with someone?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.4,
+    0.18,
+    0.17,
+    0.25
+   ],
+   "options": [
+    "Alone",
+    "With a friend",
+    "With family",
+    "Depends"
+   ]
+  },
+  {
+   "id": "cb-097",
+   "text": "How much do online ads influence what you buy?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.28,
+    0.3,
+    0.25,
+    0.12,
+    0.05
+   ]
+  },
+  {
+   "id": "cb-098",
+   "text": "Express delivery: worth paying for?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.12,
+    0.6,
+    0.28
+   ],
+   "options": [
+    "Usually",
+    "Only when urgent",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-099",
+   "text": "Do you keep receipts?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.15,
+    0.55,
+    0.3
+   ],
+   "options": [
+    "Always",
+    "For big purchases",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-100",
+   "text": "Favourite day to shop?",
+   "type": "single_choice",
+   "category": "shopping",
+   "prior": [
+    0.2,
+    0.32,
+    0.2,
+    0.28
+   ],
+   "options": [
+    "Weekday",
+    "Saturday",
+    "Sunday",
+    "No preference"
+   ]
+  },
+  {
+   "id": "cb-101",
+   "text": "How do you feel about haggling on price?",
+   "type": "likert_5",
+   "category": "shopping",
+   "prior": [
+    0.22,
+    0.22,
+    0.25,
+    0.18,
+    0.13
+   ]
+  },
+  {
+   "id": "cb-102",
+   "text": "Phone: iPhone or Android?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.42,
+    0.55,
+    0.03
+   ],
+   "options": [
+    "iPhone",
+    "Android",
+    "Other"
+   ]
+  },
+  {
+   "id": "cb-103",
+   "text": "How many hours a day do you spend on your phone?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.12,
+    0.35,
+    0.33,
+    0.2
+   ],
+   "options": [
+    "Under 2",
+    "2-4",
+    "4-6",
+    "More than 6"
+   ]
+  },
+  {
+   "id": "cb-104",
+   "text": "Do you use dark mode?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.45,
+    0.25,
+    0.3
+   ],
+   "options": [
+    "Everywhere",
+    "On some apps",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-105",
+   "text": "How comfortable are you setting up new gadgets?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.05,
+    0.1,
+    0.25,
+    0.32,
+    0.28
+   ]
+  },
+  {
+   "id": "cb-106",
+   "text": "Laptop or desktop for personal use?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.55,
+    0.2,
+    0.1,
+    0.15
+   ],
+   "options": [
+    "Laptop",
+    "Desktop",
+    "Tablet",
+    "Phone only"
+   ]
+  },
+  {
+   "id": "cb-107",
+   "text": "How do you feel about AI assistants?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.08,
+    0.12,
+    0.28,
+    0.3,
+    0.22
+   ]
+  },
+  {
+   "id": "cb-108",
+   "text": "How often do you update your phone's apps?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.55,
+    0.25,
+    0.15,
+    0.05
+   ],
+   "options": [
+    "Automatically",
+    "When reminded",
+    "Rarely",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-109",
+   "text": "How many open browser tabs right now?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.3,
+    0.38,
+    0.22,
+    0.1
+   ],
+   "options": [
+    "Under 5",
+    "5-15",
+    "16-50",
+    "More than 50"
+   ]
+  },
+  {
+   "id": "cb-110",
+   "text": "Earbuds or over-ear headphones?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.5,
+    0.2,
+    0.22,
+    0.08
+   ],
+   "options": [
+    "Earbuds",
+    "Over-ear",
+    "Both",
+    "Neither"
+   ]
+  },
+  {
+   "id": "cb-111",
+   "text": "How do you back up your photos?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.55,
+    0.08,
+    0.15,
+    0.22
+   ],
+   "options": [
+    "Cloud",
+    "External drive",
+    "Both",
+    "I don't"
+   ]
+  },
+  {
+   "id": "cb-112",
+   "text": "Smartwatch?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.3,
+    0.15,
+    0.55
+   ],
+   "options": [
+    "Wear one daily",
+    "Own one, rarely wear",
+    "Don't own one"
+   ]
+  },
+  {
+   "id": "cb-113",
+   "text": "How often do you replace your phone?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.08,
+    0.45,
+    0.2,
+    0.27
+   ],
+   "options": [
+    "Every year",
+    "Every 2-3 years",
+    "Every 4+ years",
+    "When it breaks"
+   ]
+  },
+  {
+   "id": "cb-114",
+   "text": "How excited are you by new tech launches?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.12,
+    0.18,
+    0.3,
+    0.25,
+    0.15
+   ]
+  },
+  {
+   "id": "cb-115",
+   "text": "Password manager?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.3,
+    0.38,
+    0.18,
+    0.14
+   ],
+   "options": [
+    "Yes",
+    "Browser saves them",
+    "I reuse passwords",
+    "I write them down"
+   ]
+  },
+  {
+   "id": "cb-116",
+   "text": "Favourite way to message friends?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.45,
+    0.15,
+    0.15,
+    0.12,
+    0.13
+   ],
+   "options": [
+    "WhatsApp",
+    "Telegram",
+    "Instagram DMs",
+    "SMS",
+    "Other"
+   ]
+  },
+  {
+   "id": "cb-117",
+   "text": "How do you feel about smart home devices?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.12,
+    0.15,
+    0.3,
+    0.25,
+    0.18
+   ]
+  },
+  {
+   "id": "cb-118",
+   "text": "Do you play video games?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.15,
+    0.2,
+    0.3,
+    0.35
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Occasionally",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-119",
+   "text": "Typing on a phone: one thumb or two?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.25,
+    0.65,
+    0.1
+   ],
+   "options": [
+    "One thumb",
+    "Two thumbs",
+    "Voice typing"
+   ]
+  },
+  {
+   "id": "cb-120",
+   "text": "How do you feel about crypto wallets?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.2,
+    0.18,
+    0.27,
+    0.2,
+    0.15
+   ]
+  },
+  {
+   "id": "cb-121",
+   "text": "How many email inboxes do you check?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.35,
+    0.38,
+    0.27
+   ],
+   "options": [
+    "One",
+    "Two",
+    "Three or more"
+   ]
+  },
+  {
+   "id": "cb-122",
+   "text": "Unread notifications on your phone right now?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.2,
+    0.38,
+    0.27,
+    0.15
+   ],
+   "options": [
+    "Zero",
+    "A few",
+    "Dozens",
+    "Hundreds"
+   ]
+  },
+  {
+   "id": "cb-123",
+   "text": "How do you navigate in a new city?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.68,
+    0.17,
+    0.1,
+    0.05
+   ],
+   "options": [
+    "Google Maps",
+    "Apple Maps",
+    "Other app",
+    "Ask people"
+   ]
+  },
+  {
+   "id": "cb-124",
+   "text": "How often do you clean up your phone storage?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.2,
+    0.65,
+    0.15
+   ],
+   "options": [
+    "Monthly",
+    "When it's full",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-125",
+   "text": "Voice assistants (Siri, Google): how often?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.12,
+    0.15,
+    0.35,
+    0.38
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Rarely",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-126",
+   "text": "How much do you enjoy tinkering with settings?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.12,
+    0.18,
+    0.3,
+    0.24,
+    0.16
+   ]
+  },
+  {
+   "id": "cb-127",
+   "text": "Streaming music service?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.48,
+    0.15,
+    0.18,
+    0.07,
+    0.12
+   ],
+   "options": [
+    "Spotify",
+    "Apple Music",
+    "YouTube Music",
+    "Other",
+    "None"
+   ]
+  },
+  {
+   "id": "cb-128",
+   "text": "Paper or e-books?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.48,
+    0.2,
+    0.12,
+    0.2
+   ],
+   "options": [
+    "Paper",
+    "E-books",
+    "Audiobooks",
+    "No preference"
+   ]
+  },
+  {
+   "id": "cb-129",
+   "text": "How do you feel about video calls?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.1,
+    0.2,
+    0.35,
+    0.22,
+    0.13
+   ]
+  },
+  {
+   "id": "cb-130",
+   "text": "Desktop wallpaper?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.22,
+    0.25,
+    0.2,
+    0.18,
+    0.15
+   ],
+   "options": [
+    "A photo I took",
+    "Nature",
+    "Default",
+    "Something minimal",
+    "Art"
+   ]
+  },
+  {
+   "id": "cb-131",
+   "text": "How often do you turn your phone off completely?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.05,
+    0.12,
+    0.38,
+    0.45
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Rarely",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-132",
+   "text": "Tablet use?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.2,
+    0.15,
+    0.2,
+    0.45
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Rarely",
+    "Don't own one"
+   ]
+  },
+  {
+   "id": "cb-133",
+   "text": "How do you feel about wearable fitness tech?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.12,
+    0.15,
+    0.32,
+    0.24,
+    0.17
+   ]
+  },
+  {
+   "id": "cb-134",
+   "text": "Which do you check first in the morning?",
+   "type": "single_choice",
+   "category": "tech",
+   "prior": [
+    0.38,
+    0.12,
+    0.25,
+    0.12,
+    0.13
+   ],
+   "options": [
+    "Messages",
+    "News",
+    "Social media",
+    "Email",
+    "Nothing"
+   ]
+  },
+  {
+   "id": "cb-135",
+   "text": "Keyboard shortcuts: how much do you use them?",
+   "type": "likert_5",
+   "category": "tech",
+   "prior": [
+    0.12,
+    0.2,
+    0.3,
+    0.22,
+    0.16
+   ]
+  },
+  {
+   "id": "cb-136",
+   "text": "Beach or mountains for a holiday?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.38,
+    0.25,
+    0.25,
+    0.12
+   ],
+   "options": [
+    "Beach",
+    "Mountains",
+    "City break",
+    "Countryside"
+   ]
+  },
+  {
+   "id": "cb-137",
+   "text": "Window or aisle seat?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.55,
+    0.32,
+    0.13
+   ],
+   "options": [
+    "Window",
+    "Aisle",
+    "No preference"
+   ]
+  },
+  {
+   "id": "cb-138",
+   "text": "How far ahead do you plan trips?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.15,
+    0.35,
+    0.4,
+    0.1
+   ],
+   "options": [
+    "Last minute",
+    "A few weeks",
+    "A few months",
+    "A year"
+   ]
+  },
+  {
+   "id": "cb-139",
+   "text": "Travel style?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.2,
+    0.55,
+    0.25
+   ],
+   "options": [
+    "Packed itinerary",
+    "Some plans",
+    "Go with the flow"
+   ]
+  },
+  {
+   "id": "cb-140",
+   "text": "Hotel or holiday rental?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.45,
+    0.3,
+    0.1,
+    0.15
+   ],
+   "options": [
+    "Hotel",
+    "Rental apartment",
+    "Hostel",
+    "With friends or family"
+   ]
+  },
+  {
+   "id": "cb-141",
+   "text": "How much do you enjoy flying?",
+   "type": "likert_5",
+   "category": "travel",
+   "prior": [
+    0.12,
+    0.18,
+    0.3,
+    0.25,
+    0.15
+   ]
+  },
+  {
+   "id": "cb-142",
+   "text": "How do you pack?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.38,
+    0.48,
+    0.14
+   ],
+   "options": [
+    "Carry-on only",
+    "One checked bag",
+    "Multiple bags"
+   ]
+  },
+  {
+   "id": "cb-143",
+   "text": "Solo travel?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.2,
+    0.2,
+    0.25,
+    0.35
+   ],
+   "options": [
+    "Love it",
+    "Done it once",
+    "Want to try",
+    "Not for me"
+   ]
+  },
+  {
+   "id": "cb-144",
+   "text": "Road trip or flight for a 6-hour journey?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.38,
+    0.32,
+    0.3
+   ],
+   "options": [
+    "Road trip",
+    "Flight",
+    "Train"
+   ]
+  },
+  {
+   "id": "cb-145",
+   "text": "How often do you travel abroad?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.15,
+    0.32,
+    0.33,
+    0.2
+   ],
+   "options": [
+    "Never",
+    "Every few years",
+    "Once a year",
+    "Several times a year"
+   ]
+  },
+  {
+   "id": "cb-146",
+   "text": "Souvenirs?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.3,
+    0.3,
+    0.4
+   ],
+   "options": [
+    "Always buy some",
+    "Only food",
+    "Photos are enough"
+   ]
+  },
+  {
+   "id": "cb-147",
+   "text": "How adventurous are you with activities abroad?",
+   "type": "likert_5",
+   "category": "travel",
+   "prior": [
+    0.06,
+    0.14,
+    0.3,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "id": "cb-148",
+   "text": "Museums on holiday?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.25,
+    0.45,
+    0.3
+   ],
+   "options": [
+    "Always",
+    "Sometimes",
+    "Rarely"
+   ]
+  },
+  {
+   "id": "cb-149",
+   "text": "Ideal holiday length?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.22,
+    0.42,
+    0.26,
+    0.1
+   ],
+   "options": [
+    "A long weekend",
+    "One week",
+    "Two weeks",
+    "A month or more"
+   ]
+  },
+  {
+   "id": "cb-150",
+   "text": "Travel companions?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.32,
+    0.28,
+    0.28,
+    0.12
+   ],
+   "options": [
+    "Partner",
+    "Friends",
+    "Family",
+    "Alone"
+   ]
+  },
+  {
+   "id": "cb-151",
+   "text": "How important is good food when choosing a destination?",
+   "type": "likert_5",
+   "category": "travel",
+   "prior": [
+    0.03,
+    0.07,
+    0.2,
+    0.35,
+    0.35
+   ]
+  },
+  {
+   "id": "cb-152",
+   "text": "Camping?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.25,
+    0.3,
+    0.45
+   ],
+   "options": [
+    "Love it",
+    "Glamping only",
+    "Not for me"
+   ]
+  },
+  {
+   "id": "cb-153",
+   "text": "Morning person on holiday?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.35,
+    0.35,
+    0.3
+   ],
+   "options": [
+    "Up early to explore",
+    "Sleep in",
+    "Depends"
+   ]
+  },
+  {
+   "id": "cb-154",
+   "text": "How do you find places to eat when travelling?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.4,
+    0.2,
+    0.25,
+    0.15
+   ],
+   "options": [
+    "Reviews apps",
+    "Ask locals",
+    "Walk around",
+    "Plan ahead"
+   ]
+  },
+  {
+   "id": "cb-155",
+   "text": "Theme parks?",
+   "type": "likert_5",
+   "category": "travel",
+   "prior": [
+    0.15,
+    0.15,
+    0.25,
+    0.25,
+    0.2
+   ]
+  },
+  {
+   "id": "cb-156",
+   "text": "Train journeys: how much do you enjoy them?",
+   "type": "likert_5",
+   "category": "travel",
+   "prior": [
+    0.05,
+    0.1,
+    0.25,
+    0.33,
+    0.27
+   ]
+  },
+  {
+   "id": "cb-157",
+   "text": "Cruise holiday?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.15,
+    0.35,
+    0.5
+   ],
+   "options": [
+    "Been on one, loved it",
+    "Would like to",
+    "Not interested"
+   ]
+  },
+  {
+   "id": "cb-158",
+   "text": "Learning a few words of the local language before a trip?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.3,
+    0.42,
+    0.28
+   ],
+   "options": [
+    "Always",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-159",
+   "text": "Travel insurance?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.45,
+    0.3,
+    0.25
+   ],
+   "options": [
+    "Always",
+    "For long trips",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-160",
+   "text": "Hot or cold destinations?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.45,
+    0.2,
+    0.35
+   ],
+   "options": [
+    "Hot",
+    "Cold",
+    "Mild"
+   ]
+  },
+  {
+   "id": "cb-161",
+   "text": "How do you feel about long-haul flights?",
+   "type": "likert_5",
+   "category": "travel",
+   "prior": [
+    0.2,
+    0.25,
+    0.3,
+    0.15,
+    0.1
+   ]
+  },
+  {
+   "id": "cb-162",
+   "text": "Photos on holiday?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.35,
+    0.48,
+    0.17
+   ],
+   "options": [
+    "Hundreds",
+    "A few each day",
+    "Very few"
+   ]
+  },
+  {
+   "id": "cb-163",
+   "text": "Budget or comfort when travelling?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.25,
+    0.5,
+    0.25
+   ],
+   "options": [
+    "Budget",
+    "Balanced",
+    "Comfort"
+   ]
+  },
+  {
+   "id": "cb-164",
+   "text": "Revisit favourite places or always somewhere new?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.15,
+    0.45,
+    0.4
+   ],
+   "options": [
+    "Revisit",
+    "Somewhere new",
+    "Mix"
+   ]
+  },
+  {
+   "id": "cb-165",
+   "text": "Night markets on holiday?",
+   "type": "likert_5",
+   "category": "travel",
+   "prior": [
+    0.05,
+    0.08,
+    0.22,
+    0.33,
+    0.32
+   ]
+  },
+  {
+   "id": "cb-166",
+   "text": "How do you get around a city you're visiting?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.3,
+    0.35,
+    0.25,
+    0.1
+   ],
+   "options": [
+    "Walk",
+    "Public transport",
+    "Taxi or ride-hailing",
+    "Rent a car or bike"
+   ]
+  },
+  {
+   "id": "cb-167",
+   "text": "Work while travelling (workations)?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.12,
+    0.28,
+    0.6
+   ],
+   "options": [
+    "Often",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-168",
+   "text": "How early do you start packing?",
+   "type": "single_choice",
+   "category": "travel",
+   "prior": [
+    0.48,
+    0.38,
+    0.14
+   ],
+   "options": [
+    "The night before",
+    "A few days before",
+    "A week before"
+   ]
+  },
+  {
+   "id": "cb-169",
+   "text": "Movies at the cinema or at home?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.2,
+    0.5,
+    0.3
+   ],
+   "options": [
+    "Cinema",
+    "Home",
+    "Both"
+   ]
+  },
+  {
+   "id": "cb-170",
+   "text": "Favourite movie genre?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.28,
+    0.25,
+    0.2,
+    0.12,
+    0.15
+   ],
+   "options": [
+    "Comedy",
+    "Action",
+    "Drama",
+    "Horror",
+    "Sci-fi"
+   ]
+  },
+  {
+   "id": "cb-171",
+   "text": "How often do you binge-watch a series?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.15,
+    0.35,
+    0.32,
+    0.18
+   ],
+   "options": [
+    "Never",
+    "Monthly",
+    "Weekly",
+    "Several times a week"
+   ]
+  },
+  {
+   "id": "cb-172",
+   "text": "Podcasts?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.15,
+    0.22,
+    0.3,
+    0.33
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Occasionally",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-173",
+   "text": "How do you get your news?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.35,
+    0.3,
+    0.15,
+    0.08,
+    0.12
+   ],
+   "options": [
+    "Social media",
+    "News sites or apps",
+    "TV",
+    "Friends and family",
+    "I avoid news"
+   ]
+  },
+  {
+   "id": "cb-174",
+   "text": "How much do you enjoy reality TV?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.3,
+    0.2,
+    0.22,
+    0.16,
+    0.12
+   ]
+  },
+  {
+   "id": "cb-175",
+   "text": "Subtitles on?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.38,
+    0.42,
+    0.2
+   ],
+   "options": [
+    "Always",
+    "Only for foreign languages",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-176",
+   "text": "Music while working?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.35,
+    0.42,
+    0.23
+   ],
+   "options": [
+    "Always",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-177",
+   "text": "Favourite music genre?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.3,
+    0.2,
+    0.2,
+    0.15,
+    0.15
+   ],
+   "options": [
+    "Pop",
+    "Hip-hop",
+    "Rock",
+    "Electronic",
+    "K-pop"
+   ]
+  },
+  {
+   "id": "cb-178",
+   "text": "Short videos (TikTok, Reels): how much time a day?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.2,
+    0.3,
+    0.27,
+    0.23
+   ],
+   "options": [
+    "None",
+    "Under 30 min",
+    "30-60 min",
+    "Over an hour"
+   ]
+  },
+  {
+   "id": "cb-179",
+   "text": "How much do you enjoy live concerts?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.06,
+    0.1,
+    0.24,
+    0.3,
+    0.3
+   ]
+  },
+  {
+   "id": "cb-180",
+   "text": "Re-watch favourite shows?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.32,
+    0.45,
+    0.23
+   ],
+   "options": [
+    "Often",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-181",
+   "text": "Which platform do you open most?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.35,
+    0.25,
+    0.2,
+    0.1,
+    0.1
+   ],
+   "options": [
+    "YouTube",
+    "Instagram",
+    "TikTok",
+    "X / Twitter",
+    "Facebook"
+   ]
+  },
+  {
+   "id": "cb-182",
+   "text": "Documentaries?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.06,
+    0.12,
+    0.3,
+    0.3,
+    0.22
+   ]
+  },
+  {
+   "id": "cb-183",
+   "text": "Do you watch sports?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.28,
+    0.35,
+    0.37
+   ],
+   "options": [
+    "Every week",
+    "Big events only",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-184",
+   "text": "Audiobook or podcast on a commute?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.1,
+    0.25,
+    0.55,
+    0.1
+   ],
+   "options": [
+    "Audiobook",
+    "Podcast",
+    "Music",
+    "Nothing"
+   ]
+  },
+  {
+   "id": "cb-185",
+   "text": "How much do spoilers bother you?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.15,
+    0.15,
+    0.22,
+    0.23,
+    0.25
+   ]
+  },
+  {
+   "id": "cb-186",
+   "text": "Anime?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.2,
+    0.3,
+    0.5
+   ],
+   "options": [
+    "Big fan",
+    "Occasionally",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-187",
+   "text": "Paid streaming subscriptions you have?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.12,
+    0.3,
+    0.4,
+    0.18
+   ],
+   "options": [
+    "None",
+    "One",
+    "Two or three",
+    "Four or more"
+   ]
+  },
+  {
+   "id": "cb-188",
+   "text": "How often do you post on social media?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.12,
+    0.2,
+    0.2,
+    0.48
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Monthly",
+    "Rarely or never"
+   ]
+  },
+  {
+   "id": "cb-189",
+   "text": "Board games or video games with friends?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.25,
+    0.28,
+    0.27,
+    0.2
+   ],
+   "options": [
+    "Board games",
+    "Video games",
+    "Both",
+    "Neither"
+   ]
+  },
+  {
+   "id": "cb-190",
+   "text": "Radio?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.18,
+    0.32,
+    0.5
+   ],
+   "options": [
+    "Daily",
+    "Sometimes",
+    "Never"
+   ]
+  },
+  {
+   "id": "cb-191",
+   "text": "How much do you trust online reviews of movies?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.1,
+    0.2,
+    0.38,
+    0.22,
+    0.1
+   ]
+  },
+  {
+   "id": "cb-192",
+   "text": "Magazines or newsletters you read regularly?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.45,
+    0.3,
+    0.25
+   ],
+   "options": [
+    "None",
+    "One",
+    "Several"
+   ]
+  },
+  {
+   "id": "cb-193",
+   "text": "Karaoke?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.18,
+    0.15,
+    0.25,
+    0.22,
+    0.2
+   ]
+  },
+  {
+   "id": "cb-194",
+   "text": "Ending you prefer in a story?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.38,
+    0.22,
+    0.15,
+    0.25
+   ],
+   "options": [
+    "Happy",
+    "Bittersweet",
+    "Open-ended",
+    "Twist"
+   ]
+  },
+  {
+   "id": "cb-195",
+   "text": "How often do you discover new music?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.15,
+    0.3,
+    0.27,
+    0.28
+   ],
+   "options": [
+    "Daily",
+    "Weekly",
+    "Monthly",
+    "Rarely"
+   ]
+  },
+  {
+   "id": "cb-196",
+   "text": "Watching a show: alone or with someone?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.42,
+    0.28,
+    0.2,
+    0.1
+   ],
+   "options": [
+    "Alone",
+    "With partner",
+    "With family",
+    "With friends"
+   ]
+  },
+  {
+   "id": "cb-197",
+   "text": "Comics or graphic novels?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.3,
+    0.2,
+    0.25,
+    0.15,
+    0.1
+   ]
+  },
+  {
+   "id": "cb-198",
+   "text": "How much do celebrity news interest you?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.35,
+    0.25,
+    0.22,
+    0.12,
+    0.06
+   ]
+  },
+  {
+   "id": "cb-199",
+   "text": "How do you feel about movie sequels and remakes?",
+   "type": "likert_5",
+   "category": "media",
+   "prior": [
+    0.15,
+    0.25,
+    0.35,
+    0.17,
+    0.08
+   ]
+  },
+  {
+   "id": "cb-200",
+   "text": "Where do you usually listen to music?",
+   "type": "single_choice",
+   "category": "media",
+   "prior": [
+    0.45,
+    0.25,
+    0.2,
+    0.1
+   ],
+   "options": [
+    "Earbuds on the go",
+    "Speaker at home",
+    "In the car",
+    "Rarely listen"
+   ]
+  }
+ ]
+}

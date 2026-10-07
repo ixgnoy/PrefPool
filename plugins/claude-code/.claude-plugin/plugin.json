@@ -1,0 +1,57 @@
+{
+  "name": "agent-survey",
+  "displayName": "Agent Survey Marketplace",
+  "version": "0.1.0",
+  "description": "Let your agent answer paid research campaigns under your policy (rewards in SOL), or run campaigns and buy reports over x402 (USDC) on Solana devnet.",
+  "author": {
+    "name": "Agent Survey team"
+  },
+  "userConfig": {
+    "server_url": {
+      "type": "string",
+      "title": "Platform API URL",
+      "description": "Agent Survey server, e.g. https://agent-survey.fly.dev",
+      "required": true
+    },
+    "web_url": {
+      "type": "string",
+      "title": "Platform web URL",
+      "description": "Agent Survey web app, used for sign-in and funding links",
+      "required": true
+    },
+    "agent_token": {
+      "type": "string",
+      "title": "Respondent agent token",
+      "description": "Create it at <web_url>/seller/agent after connecting your Solana wallet (Phantom, Solflare, Backpack). Leave empty for research-only use.",
+      "sensitive": true
+    },
+    "agent_solana_secret_key": {
+      "type": "string",
+      "title": "Agent wallet secret key (Solana devnet)",
+      "description": "Small devnet keypair (base58 secret key or the JSON byte array from solana-keygen) that pays the 3 USDC report fee over x402 and, within max_budget_sol, funds the agent's own campaigns. Never your main wallet.",
+      "sensitive": true
+    },
+    "solana_rpc_url": {
+      "type": "string",
+      "title": "Solana RPC URL",
+      "description": "Devnet RPC used to build the x402 USDC payment",
+      "default": "https://api.devnet.solana.com"
+    },
+    "max_report_price_usdc": {
+      "type": "number",
+      "title": "Max USDC per report",
+      "description": "Hard cap the agent may pay for one report over x402 (the platform fee is 3 USDC)",
+      "default": 5,
+      "min": 3,
+      "max": 50
+    },
+    "max_budget_sol": {
+      "type": "number",
+      "title": "Max SOL per campaign the agent may fund",
+      "description": "fund_campaign refuses budgets above this; 0 = always hand funding to a human",
+      "default": 0,
+      "min": 0,
+      "max": 10
+    }
+  }
+}

@@ -1,0 +1,527 @@
+{
+  "address": "Cm1NmUPngoFke9pc8zXsK2qebBEfPb76bS3gHfjMS2hN",
+  "metadata": {
+    "name": "campaign_escrow",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Survey campaign escrow: budget locked per campaign, one permissionless settle against a CRE-signed payee list"
+  },
+  "instructions": [
+    {
+      "name": "fund",
+      "docs": [
+        "Lock a campaign's budget in its escrow PDA."
+      ],
+      "discriminator": [
+        218,
+        188,
+        111,
+        221,
+        152,
+        113,
+        174,
+        7
+      ],
+      "accounts": [
+        {
+          "name": "company",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "FundArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refund",
+      "docs": [
+        "Return the whole escrow to the company after refund_after."
+      ],
+      "discriminator": [
+        2,
+        96,
+        183,
+        251,
+        63,
+        208,
+        46,
+        46
+      ],
+      "accounts": [
+        {
+          "name": "company",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "campaign"
+          ]
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settle",
+      "docs": [
+        "Pay the CRE-signed payee list (remaining accounts) and close the escrow to the company."
+      ],
+      "discriminator": [
+        175,
+        42,
+        185,
+        87,
+        144,
+        131,
+        102,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "submitter",
+          "signer": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.campaign_id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "company",
+          "writable": true,
+          "relations": [
+            "campaign"
+          ]
+        },
+        {
+          "name": "instructions",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "report_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Campaign",
+      "discriminator": [
+        50,
+        40,
+        49,
+        11,
+        157,
+        220,
+        229,
+        192
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "Funded",
+      "discriminator": [
+        67,
+        84,
+        56,
+        88,
+        192,
+        12,
+        201,
+        177
+      ]
+    },
+    {
+      "name": "Refunded",
+      "discriminator": [
+        35,
+        103,
+        149,
+        246,
+        196,
+        123,
+        221,
+        99
+      ]
+    },
+    {
+      "name": "Settled",
+      "discriminator": [
+        232,
+        210,
+        40,
+        17,
+        142,
+        124,
+        145,
+        238
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "RewardTooSmall",
+      "msg": "Reward must cover the rent-exempt minimum of a payee account"
+    },
+    {
+      "code": 6001,
+      "name": "BadCohort",
+      "msg": "Cohort bounds must satisfy 1 <= min_cohort <= max_responses <= MAX_PAYEES"
+    },
+    {
+      "code": 6002,
+      "name": "BadSchedule",
+      "msg": "Deadline must be in the future and before refund_after"
+    },
+    {
+      "code": 6003,
+      "name": "BudgetTooSmall",
+      "msg": "Budget must cover reward * max_responses"
+    },
+    {
+      "code": 6004,
+      "name": "OutsideSettleWindow",
+      "msg": "Settle is only allowed in [deadline, refund_after)"
+    },
+    {
+      "code": 6005,
+      "name": "RefundTooEarly",
+      "msg": "Refund is only allowed from refund_after"
+    },
+    {
+      "code": 6006,
+      "name": "BadPayeeCount",
+      "msg": "Payee count must be 0 or within [min_cohort, max_responses]"
+    },
+    {
+      "code": 6007,
+      "name": "MissingReportSignature",
+      "msg": "The previous instruction must be one Ed25519 verification of the report key over the settle digest"
+    },
+    {
+      "code": 6008,
+      "name": "WrongReportSignature",
+      "msg": "The Ed25519 instruction signs a different key or message"
+    },
+    {
+      "code": 6009,
+      "name": "BadPayeeAccount",
+      "msg": "Payee accounts must be writable and must not be the escrow itself"
+    },
+    {
+      "code": 6010,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Campaign",
+      "docs": [
+        "One escrow per campaign at PDA [\"campaign\", campaign_id]. Its lamports above rent are the locked budget."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "company",
+            "docs": [
+              "Funder; receives the refund and the account's rent when the escrow closes."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "report_pk",
+            "docs": [
+              "CRE's Ed25519 report key: only a payee list it signed can settle this escrow."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reward_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "budget_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "max_responses",
+            "type": "u16"
+          },
+          {
+            "name": "min_cohort",
+            "type": "u16"
+          },
+          {
+            "name": "deadline_ms",
+            "docs": [
+              "Unix milliseconds, like the rest of the platform."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "refund_after_ms",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FundArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "report_pk",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reward_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "budget_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "max_responses",
+            "type": "u16"
+          },
+          {
+            "name": "min_cohort",
+            "type": "u16"
+          },
+          {
+            "name": "deadline_ms",
+            "type": "i64"
+          },
+          {
+            "name": "refund_after_ms",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Funded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "company",
+            "type": "pubkey"
+          },
+          {
+            "name": "budget_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Refunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Settled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "payees",
+            "type": "u16"
+          },
+          {
+            "name": "paid_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "CAMPAIGN_SEED",
+      "type": "bytes",
+      "value": "[99, 97, 109, 112, 97, 105, 103, 110]"
+    },
+    {
+      "name": "MAX_PAYEES",
+      "docs": [
+        "Upper bound on payees per settle: one legacy transaction (1232 bytes) fits about 21 extra accounts next to the",
+        "Ed25519 instruction, so campaigns are capped below that."
+      ],
+      "type": "u16",
+      "value": "20"
+    }
+  ]
+}

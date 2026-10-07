@@ -1,0 +1,40 @@
+{
+  "name": "@as/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p .",
+    "facilitator": "tsx src/facilitator.ts"
+  },
+  "dependencies": {
+    "@as/chain": "*",
+    "@as/shared": "*",
+    "@noble/curves": "2.4.0",
+    "@solana/kit": "5.5.1",
+    "@solana/web3.js": "1.98.4",
+    "@worldcoin/idkit-core": "4.3.0",
+    "@x402/core": "2.28.0",
+    "@x402/express": "2.28.0",
+    "@x402/svm": "2.28.0",
+    "bs58": "6.0.0",
+    "express": "^5.1.0",
+    "postgres": "^3.4.9",
+    "tsx": "^4",
+    "ws": "^8.22.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22",
+    "@types/supertest": "^6.0.0",
+    "@types/ws": "^8.18.0",
+    "@x402/fetch": "2.28.0",
+    "supertest": "^7.1.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
+  }
+}

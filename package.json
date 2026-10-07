@@ -1,0 +1,22 @@
+{
+  "name": "agent-survey",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "chain",
+    "server",
+    "web",
+    "plugins/mcp",
+    "cre-runner"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "start": "node scripts/deploy/railway-start.mjs"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.9 <23"
+  }
+}

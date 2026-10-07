@@ -1,0 +1,51 @@
+# Private research and brainstorming (never commit)
+/research/
+
+/AGENTS.md
+
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+# committed MCP bundle (WS5 Task 5.2: installed plugins run it without a build step)
+!plugins/claude-code/dist/
+.next/
+# Cardano contract (Aiken) — never commit
+/contracts/
+
+# Railway deployment (never commit)
+/railway.json
+/scripts/deploy/railway-start.mjs
+
+# Project docs (never commit)
+/docs/
+evm/out/
+evm/cache/
+evm/broadcast/
+cre/**/.env
+cre/secrets.yaml
+*.wasm
+.cre/
+
+# Next.js generated
+next-env.d.ts
+*.tsbuildinfo
+
+# left behind by cre workflow simulate
+.cre_build_tmp.js
+.playwright-mcp/
+web/AGENTS.md
+web/CLAUDE.md
+
+# local agent/skill tooling (never publish)
+.agents/
+.claude/
+skills-lock.json
+
+.vercel/
+
+supabase/.temp/
+
+.vercel
+.env*.local
