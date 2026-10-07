@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { aggregate, answersValid, clientCounts, hashResearch, sourceCounts, signSettlement, verifySettlementReport, type UnsignedSettlement } from '../src/report.js';
+import { LOW_DISPERSION, aggregate, answersValid, clientCounts, dispersion, hashResearch, sourceCounts, signSettlement, verifySettlementReport, type UnsignedSettlement } from '../src/report.js';
 import type { Question } from '../src/types.js';
 import { addressFromSeed, campaignEscrowAddress } from '../src/address.js';
 
@@ -110,5 +110,18 @@ describe('sourceCounts', () => {
       q1: { checked: 1, owner_told: 0, inferred: 1, unknown: 2 },
       q2: { checked: 0, owner_told: 1, inferred: 0, unknown: 3 },
     });
+  });
+});
+
+describe('dispersion', () => {
+  it('is 0 when everyone agrees and 1 for an even spread', () => {
+    expect(dispersion({ q1: { a: 1, b: 0 }, q2: { a: 0.5, b: 0.5 }, q3: { '1': 0.2, '2': 0.2, '3': 0.2, '4': 0.2, '5': 0.2 } })).toEqual({ q1: 0, q2: 1, q3: 1 });
+    expect(dispersion({ q1: { a: 0.9, b: 0.1 } }).q1).toBeLessThan(LOW_DISPERSION + 0.15);
+  });
+  it('rounds to 4 decimals, keeps question order, and treats single-option questions as 0', () => {
+    const d = dispersion({ z: { a: 0.7, b: 0.2, c: 0.1 }, a: { only: 1 } });
+    expect(Object.keys(d)).toEqual(['z', 'a']);
+    expect(d.z).toBe(Math.round(d.z * 10_000) / 10_000);
+    expect(d.a).toBe(0);
   });
 });

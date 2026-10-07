@@ -18,7 +18,7 @@ import { refundDirect } from '@/lib/fund';
 import { layoutFish, type Phase } from '@/lib/aquarium';
 import { LAMPORTS, STATE_UI, TIMELINE, fmtSol, fmtTime, short, sol, type CampaignState } from '@/lib/campaign';
 import { DEMO_NOTE } from '@/lib/config';
-import { campaignEscrowAddress, type ResearchReport } from '@as/shared';
+import { LOW_DISPERSION, campaignEscrowAddress, type ResearchReport } from '@as/shared';
 
 const CRE_STEPS = ['Read escrow from Solana', 'Decrypt (inside CRE)', 'Validate', 'Remove duplicates', 'Cohort check (≥ k)', 'Aggregate', 'Sign payee list'];
 type StepState = 'done' | 'run' | 'idle' | 'fail' | 'skip';
@@ -272,7 +272,10 @@ function Results({ c, abstained }: { c: CampaignView; abstained: number }) {
             const entries = Object.entries(report.results[q.id] ?? {});
             return (
               <div key={q.id} className="flex flex-col gap-2">
-                <span className="text-sm font-bold">{q.text}</span>
+                <span className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                  {q.text}
+                  {lowSpread(report, q.id) && <span title={LOW_SPREAD_TITLE}><Pill tone="warn">low spread</Pill></span>}
+                </span>
                 {entries.map(([opt, frac]) => {
                   const pct = Math.round(frac * 100);
                   return (
@@ -293,6 +296,13 @@ function Results({ c, abstained }: { c: CampaignView; abstained: number }) {
       </p>
     </Card>
   );
+}
+
+const LOW_SPREAD_TITLE = 'Almost every agent answered the same way; treat with care.';
+/** True when the report flags this question's answers as suspiciously uniform (older reports carry no dispersion). */
+function lowSpread(report: ResearchReport, qid: string): boolean {
+  const d = report.dispersion?.[qid];
+  return d !== undefined && d < LOW_DISPERSION;
 }
 
 /** Company escape hatch: after refund_after the buyer signs a Refund tx that returns the whole escrow. */

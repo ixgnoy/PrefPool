@@ -112,4 +112,6 @@ export interface ResearchReport {
   sources?: Record<string, Record<AnswerSource | 'unknown', number>>;
   /** Accepted answers per client (name, model id when reported); buckets under 3 fold into "other". */
   clients?: Record<string, number>;
+  /** Per question: normalized Shannon entropy of the shares (0 = unanimous, 1 = even spread), 4 decimals. */
+  dispersion?: Record<string, number>;
 }

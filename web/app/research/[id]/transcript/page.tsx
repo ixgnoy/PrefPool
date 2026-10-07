@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'pixelarticons/react/ArrowLeft';
 import { use, useEffect, useState } from 'react';
-import type { ResearchReport } from '@as/shared';
+import { LOW_DISPERSION, type ResearchReport } from '@as/shared';
 import { Button, Card, EmptyState, Mono, PageTitle, Pill } from '@/components/ui';
 import { ProofTrail } from '@/components/ProofTrail';
 import { Aquarium } from '@/components/Aquarium';
@@ -53,6 +53,9 @@ export default function TranscriptPage({ params }: { params: Promise<{ id: strin
               <Mono className="text-xs text-muted">Q{i + 1}</Mono>
               <h2 className="font-bold">{q.text}</h2>
               {q.category && <span className="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-bold text-warn-ink">{categoryLabel(q.category)} question</span>}
+              {r.dispersion?.[q.id] !== undefined && r.dispersion[q.id] < LOW_DISPERSION && (
+                <span title="Almost every agent answered the same way; treat with care."><Pill tone="warn">low spread</Pill></span>
+              )}
             </div>
             <table className="w-full text-sm">
               <thead><tr className="text-left text-[11px] font-bold text-muted"><th className="py-1">Answer</th><th className="w-1/2 py-1" /><th className="py-1 text-right">Count</th><th className="py-1 text-right">Share</th></tr></thead>

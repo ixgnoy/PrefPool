@@ -111,3 +111,20 @@ export function clientCounts(metas: (EnvelopeMeta | null)[]): Record<string, num
   // fromEntries defines own properties, so a client named "__proto__" stays a plain key.
   return Object.fromEntries(kept);
 }
+
+/** Below this normalized entropy, a question's answers are flagged as suspiciously uniform (prior-driven agents). */
+export const LOW_DISPERSION = 0.35;
+/**
+ * Normalized Shannon entropy per question: 0 = every respondent chose the same option, 1 = an even spread.
+ * Iterates in the results' (questionnaire) order and rounds to 4 decimals so the report bytes are stable across runtimes.
+ */
+export function dispersion(results: ResearchReport['results']): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [qid, shares] of Object.entries(results)) {
+    const k = Object.keys(shares).length;
+    const h = -Object.values(shares).filter((p) => p > 0).reduce((s, p) => s + p * Math.log(p), 0);
+    // Clamp: shares are themselves rounded, so h / log(k) can drift a hair past [0, 1].
+    out[qid] = k > 1 ? Math.min(1, Math.max(0, Math.round((h / Math.log(k)) * 10_000) / 10_000)) : 0;
+  }
+  return out;
+}

@@ -6,7 +6,7 @@ import { addressFromSeed, campaignEscrowAddress } from '../src/address.js';
 import { encodeCampaignAccount, type EscrowAccount } from '../src/escrowAccount.js';
 import { sealEnvelope } from '../src/envelope.js';
 import { runPipeline, type CreContext, type ReceivedEnvelope } from '../src/pipeline.js';
-import { verifySettlementReport } from '../src/report.js';
+import { dispersion, verifySettlementReport } from '../src/report.js';
 import type { Question } from '../src/types.js';
 import { base64 } from '@scure/base';
 
@@ -46,6 +46,8 @@ describe('runPipeline', () => {
     expect(settlement.refundAddress).toBe(COMPANY);
     expect(verifySettlementReport(settlement, repPk, { minCohort: 15, maxResponses: 30 })).toEqual([]);
     expect(research!.results.q1).toEqual({ 'Pay less, live more': 0.5217, 'Your money, faster': 0.4783 });
+    expect(research!.dispersion!.q1).toBe(dispersion(research!.results).q1);
+    expect(research!.dispersion!.q1).toBeGreaterThan(0.99);
   });
   it('emits a zero-count full refund and no research below the cohort', () => {
     const { settlement, research } = runPipeline(input(14));

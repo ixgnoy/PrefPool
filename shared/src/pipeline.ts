@@ -2,7 +2,7 @@
 import { settleAddressOk } from './settlePayload';
 import { openSealed } from './envelope';
 import { decodeCampaignAccount, type EscrowAccount } from './escrowAccount';
-import { aggregate, answersValid, clientCounts, hashResearch, signSettlement, sourceCounts } from './report';
+import { aggregate, answersValid, clientCounts, dispersion, hashResearch, signSettlement, sourceCounts } from './report';
 import type { PersonhoodKind } from './personhood';
 import type { Answers, Envelope, EnvelopeMeta, Question, ResearchReport, SettlementReport } from './types';
 
@@ -83,10 +83,12 @@ export function runPipeline(input: PipelineInput): PipelineOutput {
 
   const cohortMet = accepted.length >= datum.minCohort;
   const winners = cohortMet ? accepted : [];
-  const research: ResearchReport | null = cohortMet
+  const results = cohortMet ? aggregate(context.questions, winners.map((w) => w.answers)) : null;
+  const research: ResearchReport | null = results
     ? {
         schemaVersion: 1, campaignId: context.campaignId, validRespondents: winners.length, minCohort: datum.minCohort,
-        results: aggregate(context.questions, winners.map((w) => w.answers)),
+        results,
+        dispersion: dispersion(results),
         sources: sourceCounts(context.questions, winners.map((w) => w.meta)),
         clients: clientCounts(winners.map((w) => w.meta)),
         ...(context.personhood ? {
