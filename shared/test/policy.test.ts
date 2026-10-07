@@ -45,6 +45,23 @@ describe('screenCampaign', () => {
     expect(screenCampaign(bad, now)).toContain('identifying question: q1');
     expect(screenCampaign({ ...spec, category: 'health' }, now)).toContain('sensitive category: health');
   });
+  it('rejects location, contact and account asks', () => {
+    const ask = (text: string) => ({ ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text, options: ['Yes', 'No', 'Not sure'] }] });
+    expect(screenCampaign(ask('Does your owner live in Kuala Lumpur?'), now)).toContain('identifying question: q1');
+    expect(screenCampaign(ask("What is your owner's email address?"), now)).toContain('identifying question: q1');
+    expect(screenCampaign(ask("Does your owner's wallet address start with A?"), now)).toContain('identifying question: q1');
+    expect(screenCampaign(ask('What is your owner\'s date of birth?'), now)).toContain('identifying question: q1');
+    expect(screenCampaign(ask('What is your Solana account?'), now)).toContain('identifying question: q1');
+    expect(screenCampaign(ask('Which letter does your wallet start with?'), now)).toContain('identifying question: q1');
+  });
+  it('does not treat wallets, email tools or birthdays in general as identifying', () => {
+    const ask = (text: string) => ({ ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text, options: ['Yes', 'No', 'Not sure'] }] });
+    expect(screenCampaign(ask('Do you use a crypto wallet to pay for things?'), now)).toEqual([]);
+    expect(screenCampaign(ask("Do you send email on your owner's behalf?"), now)).toEqual([]);
+    expect(screenCampaign(ask('Do you use tools that live in the browser?'), now)).toEqual([]);
+    expect(screenCampaign(ask('Do you remind your owner of birthdays?'), now)).toEqual([]);
+    expect(screenCampaign(ask('Do you use public key authentication for SSH?'), now)).toEqual([]);
+  });
   it('rejects questions about credentials (keys, passwords, how secrets are stored)', () => {
     expect(screenCampaign({ ...spec, category: 'credentials' }, now)).toContain('sensitive category: credentials');
   });

@@ -10,6 +10,16 @@ const IDENTIFYING = [
   /\b(ic|nric|passport|ssn)\s*(number|no\.?)?\b/i,
   /\bphone\s+number\b/i,
   /\bemployer\b/i,
+  // Where the owner is. "tools that live in the browser" passes: the subject must be a person.
+  /\b(?:you|owner|they|he|she)\s+(?:lives?|living|located|based)\s+in\b/i,
+  /\b(?:date of birth|born on)\b|\b(?:your|owner['\u2019]?s|their)\s+birthday\b/i,
+  // Contact details. "Do you send email for your owner?" is a workflow question and passes.
+  /\be-?mail\s+address(?:es)?\b|\bwhat(?:['\u2019]s|\s+is)\s+(?:your|the)\s+(?:owner['\u2019]?s\s+)?e-?mail\b/i,
+  /\b(?:bank|card|account|wallet)\s+(?:number|address)\b/i,
+  // Accounts and addresses. "Do you use a crypto wallet?" passes; the account itself, or any of its characters, does not.
+  /\b(?:solana|crypto|phantom|solflare)\s+(?:account|address)\b|\b(?:your|owner['\u2019]?s|their)\s+(?:\w+\s+)?public key\b/i,
+  /\b(?:wallet|address|account|key)\b.*\b(?:starts?|begins?|ends?)\s+with\b|\b(?:first|last)\s+(?:\w+\s+)?(?:character|letter|digit)s?\s+of\s+(?:your|the)\b/i,
+  /\b(?:zip|postal)\s*code\b|\bpostcode\b/i,
 ];
 const INJECTION = [/ignore (all |any )?(previous|prior) instructions/i, /system prompt/i, /you are now/i];
 

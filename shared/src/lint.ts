@@ -54,6 +54,33 @@ const ESCAPE = /^(none|not applicable|n\/a|other\b|don['\u2019]?t know|not sure|
 // Links, backticks, markdown links, and HTML: a tag-like "<x ...>", a comment/doctype "<!", or a known dangerous tag.
 // "< a second" and "<1s" are comparisons, not markup.
 const MARKUP = /https?:\/\/|www\.|`|\]\(|<!|<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?>|<\/?(?:script|iframe|img|svg|style|object|embed|link|meta)\b/i;
+// Abuse (G4b). Campaigns ask about an agent's experience; a stem that commands work, or text that carries code or
+// arithmetic, is labor extraction, not research. Imperatives only count at the start of the stem ("Which tools ...
+// do you use to translate" passes); "Can you pay with crypto?" passes because "pay" is not a work verb.
+const TASK_REQUEST = [
+  /^(?:(?:please|can you|could you|would you)\s+)?(?:write|fix|debug|solve|compute|calculate|translate|summari[sz]e|generate|implement|explain|draft|rewrite|refactor|convert|classify|prove|evaluate|simplify|correct|complete|rank|find the (?:bug|error|mistake))\b/i,
+  // Grading items with one right answer: "Which of these SQL statements is correct?". "... is correct for you" is a preference.
+  /\bwhich\s+(?:(?:of\s+these|one)\s+)?(?:[\w-]+\s+){0,3}(?:is|are)\s+(?:the\s+)?(?:correct|right|valid|accurate|grammatical|true)(?:\s+answer)?\b(?!\s+(?:for|in|about|of)\b)/i,
+];
+// Code, case-sensitive: only structural signals. Words like "function" or "code" and calls like "useState()" are prose.
+const CODE = /[{}]|=>|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=|\bfunction\s*[\w$]*\s*\(|\bdef\s+\w+\s*\(|\b(?:elif|printf|console\.log|System\.out)\b|#include\b|\bSELECT\b.+\bFROM\b/;
+// Arithmetic. "1-5", "$20-100", "10+ times" and "24/7" are ranges and phrases, not sums: + and / only count with spaces
+// on both sides ("2 + 2", "100 / 4") or after "what is".
+const MATH = [
+  /\d\s*[*\u00D7\u00F7^]\s*\d/,
+  /\d\s+[+/]\s+\d/,
+  /\bwhat(?:['\u2019]s|\s+is)\s+-?\d[\d.,]*\s*[-+*/\u00D7\u00F7^x]\s*\d/i,
+  /\b(?:sqrt|square root of|integral of|derivative of|solve for)\b/i,
+];
+// Secrets of the agent or the owner. "password manager" is a product and passes; "your password" does not.
+const CREDENTIAL = [
+  /\b(?:api[ _-]?keys?|secret[ _-]?keys?|private[ _-]?keys?|signing keys?|key ?pairs?|seed phrases?|recovery phrases?|mnemonics?|passphrases?|(?:access|bearer|auth|refresh|session) tokens?|client secrets?|credentials?)\b/i,
+  /(?:^|\s)\.env\b|\benv(?:ironment)?\s+var(?:iable)?s?\b/i,
+  /\b(?:openai|anthropic|github|solana|wallet|ssh|gpg)\s+(?:secret\s+)?keys?\b/i,
+  /\b(?:your|owner['\u2019]?s|their|the)\s+passwords?\b(?!\s+managers?\b)/i,
+  // Env var names, case-sensitive so prose like "max_token" does not count.
+  /\b[A-Z][A-Z0-9_]*_(?:KEY|SECRET|TOKEN|PASSWORD|PASSPHRASE|MNEMONIC)S?\b/,
+];
 // Printable ASCII plus Latin-1/Latin Extended letters, typographic dashes/quotes/ellipsis and the euro sign.
 const ODD_CHARS = /[^\x09\x0A\x0D\x20-\x7E\u00A0-\u024F\u2010-\u2027\u20AC]/;
 const NUM = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`;
@@ -72,6 +99,11 @@ export function lintQuestion(q: Question): LintIssue[] {
   const opts = q.options ?? [];
 
   if (MARKUP.test(q.text) || opts.some((o) => MARKUP.test(o))) issue('markup', 'block', 'no links, HTML or code in a question');
+  const all = [q.text, ...opts];
+  if (TASK_REQUEST.some((r) => r.test(stem.trim())) || all.some((t) => CODE.test(t) || MATH.some((r) => r.test(t)))) {
+    issue('task_request', 'block', 'campaigns ask about experience; they must not ask the agent to do work (code, maths, translation)');
+  }
+  if (all.some((t) => CREDENTIAL.some((r) => r.test(t)))) issue('credential_ask', 'block', 'never ask about keys, passwords, tokens or secrets');
   if (HARD_NEGATION.some((r) => r.test(stem))) issue('negated_stem', 'block', 'ask it positively ("which do you use", not "which do you NOT use")');
   else if (SOFT_NEGATION.test(stem)) issue('negation', 'warn', 'a negative in the question; small models misread these, prefer a positive wording');
   if (ODD_CHARS.test(q.text) || opts.some((o) => ODD_CHARS.test(o))) issue('odd_chars', 'warn', 'unusual characters; models are sensitive to typos and symbols');
