@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 import { Fin, type Pose } from './Fin';
 import { STATE_UI, short, type CampaignState, type Tone } from '@/lib/campaign';
-import { BASESCAN, explorerAddress, explorerTx } from '@/lib/config';
+import { explorerAddress, explorerTx } from '@/lib/config';
 import { Check } from 'pixelarticons/react/Check';
 import { Close } from 'pixelarticons/react/Close';
 import { ExternalLink } from 'pixelarticons/react/ExternalLink';
@@ -72,13 +72,13 @@ export function ChoiceChip({ on, onClick, children }: { on: boolean; onClick(): 
 
 export const Mono = ({ className, children }: { className?: string; children: ReactNode }) => <span className={cx('font-mono font-medium', className)}>{children}</span>;
 
-/** Solana Explorer (Devnet) by default; `evm` links Basescan Sepolia. */
-export function TxLink({ hash, className, evm = false, full = false }: { hash: string; className?: string; evm?: boolean; full?: boolean }) {
-  const href = evm ? `${BASESCAN}/tx/${hash}` : explorerTx(hash);
+/** Solana Explorer (Devnet). */
+export function TxLink({ hash, className, full = false }: { hash: string; className?: string; full?: boolean }) {
+  const href = explorerTx(hash);
   return <a href={href} target="_blank" rel="noreferrer" className={cx('font-mono text-[13px] font-medium text-blue hover:underline', full && 'break-all', className)}>{full ? hash : short(hash, 6, 4)}<ExternalLink aria-hidden width={14} height={14} className="ml-0.5 inline align-[-2px]" /></a>;
 }
-export function AddressLink({ address, className, evm = false, full = false }: { address: string; className?: string; evm?: boolean; full?: boolean }) {
-  const href = evm ? `${BASESCAN}/address/${address}` : explorerAddress(address);
+export function AddressLink({ address, className, full = false }: { address: string; className?: string; full?: boolean }) {
+  const href = explorerAddress(address);
   return <a href={href} target="_blank" rel="noreferrer" className={cx('font-mono text-[13px] font-medium text-blue hover:underline', full && 'break-all', className)}>{full ? address : short(address, 12, 4)}<ExternalLink aria-hidden width={14} height={14} className="ml-0.5 inline align-[-2px]" /></a>;
 }
 
@@ -159,16 +159,25 @@ export function Segmented<T extends string>({ value, onChange, options, classNam
   );
 }
 
-/** Wizard progress: equal segments, done = green, current = blue. */
-export function Progress({ steps, current }: { steps: readonly string[]; current: number }) {
+/** Wizard progress: equal segments, done = green, current = blue. With onSelect, reached steps are buttons (selected = underlined). */
+export function Progress({ steps, current, selected, onSelect }: {
+  steps: readonly string[]; current: number; selected?: number | null; onSelect?: (i: number) => void;
+}) {
   return (
     <ol className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
-      {steps.map((s, i) => (
-        <li key={s} className="flex flex-col gap-1.5" aria-current={i === current ? 'step' : undefined}>
+      {steps.map((s, i) => {
+        const body = <>
           <span className={cx('h-2 transition-colors', i < current ? 'bg-ok' : i === current ? 'bg-blue' : 'bg-line')} />
-          <span className={cx('truncate text-xs font-bold', i <= current ? 'text-ink' : 'text-muted')}>{s}</span>
-        </li>
-      ))}
+          <span className={cx('truncate text-xs font-bold', i <= current ? 'text-ink' : 'text-muted', i === selected && 'underline decoration-2 underline-offset-4')}>{s}</span>
+        </>;
+        return (
+          <li key={s} className="flex flex-col gap-1.5" aria-current={i === current ? 'step' : undefined}>
+            {onSelect && i <= current
+              ? <button type="button" onClick={() => onSelect(i)} aria-pressed={i === selected} className="flex flex-col gap-1.5 text-left hover:opacity-80">{body}</button>
+              : body}
+          </li>
+        );
+      })}
     </ol>
   );
 }

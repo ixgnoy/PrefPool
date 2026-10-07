@@ -29,9 +29,9 @@ async function localFacilitator() {
 
 const PAY_TO = addressFromSeed('platform-fee-wallet');
 
-async function setup(state: string, research: object | null) {
+async function setup(state: string, research: object | null, fee = true) {
   const { deps } = await makeDeps();
-  deps.config.platformFeePayTo = PAY_TO;
+  if (fee) deps.config.platformFeePayTo = PAY_TO;
   const fac = await localFacilitator();
   const app = createApp(deps, (a) => mountReportRoute(a, deps, { facilitatorUrl: fac.url }));
   const id = 'cc'.repeat(32);
@@ -76,9 +76,11 @@ describe('x402 report endpoint', () => {
     expect(USDC_MINT).toBe('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
     s.close();
   });
-  it('503 when the fee wallet or facilitator is not configured', async () => {
-    const { deps } = await makeDeps();
-    const app = createApp(deps, (a) => mountReportRoute(a, deps, { facilitatorUrl: 'http://127.0.0.1:9' }));
-    expect((await request(app).get(`/api/campaigns/${'cc'.repeat(32)}/report`).expect(503)).body.code).toBe('X402_UNCONFIGURED');
+  it('no fee configured: the access token alone returns the report (still 403 without it)', async () => {
+    const s = await setup('SETTLED', { results: { q1: { A: 1 } } }, false);
+    await request(s.app).get(`/api/campaigns/${s.id}/report`).expect(403);
+    const res = await request(s.app).get(`/api/campaigns/${s.id}/report`).set('Authorization', `Bearer ${'t'.repeat(64)}`).expect(200);
+    expect(res.body).toMatchObject({ results: { q1: { A: 1 } }, settlementTx: 'd'.repeat(64) });
+    s.close();
   });
 });

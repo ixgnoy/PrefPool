@@ -13,12 +13,10 @@ export interface ServerConfig {
   rpcUrl?: string;
   /** Fixed platform fee for buying a research report over x402, in USDC (PLATFORM_FEE_USDC). */
   platformFeeUsdc: number;
-  /** Wallet receiving the x402 report fee (PLATFORM_FEE_PAY_TO); unset = report fee route answers 503. */
+  /** Wallet receiving the x402 report fee (PLATFORM_FEE_PAY_TO); unset = no fee, the access token alone gets the report. */
   platformFeePayTo?: string;
   /** Public origin of this API (PUBLIC_BASE_URL); links handed to other agents use it, not the request's Host. */
   publicBaseUrl?: string;
-  /** Shown in the dev view (FRONTEND_PRD §5.10). */
-  reportRegistryAddress?: string;
   /** World ID seller verification; undefined disables the feature. */
   personhood?: { appId: string; rpId: string; signingKey: string; environment: 'staging' | 'production' };
 }

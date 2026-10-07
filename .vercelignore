@@ -16,7 +16,4 @@ node_modules/
 **/node_modules/
 .next/
 contracts/build/
-evm/out/
-evm/cache/
-evm/broadcast/
 *.wasm

@@ -5,14 +5,17 @@ import Link from 'next/link';
 import { ArrowLeft } from 'pixelarticons/react/ArrowLeft';
 import { use, useEffect, useState } from 'react';
 import type { ResearchReport } from '@as/shared';
-import { Button, Card, EmptyState, Mono, PageTitle } from '@/components/ui';
+import { Button, Card, EmptyState, Mono, PageTitle, Pill } from '@/components/ui';
+import { ProofTrail } from '@/components/ProofTrail';
+import { Aquarium } from '@/components/Aquarium';
+import { layoutFish } from '@/lib/aquarium';
 import { getCampaign, getResults, type CampaignView } from '@/lib/api';
 import { categoryLabel } from '@/lib/policy';
 import { useStore } from '@/lib/store';
 
 export default function TranscriptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { session } = useStore();
+  const { session, view } = useStore();
   const [c, setC] = useState<CampaignView | null>(null);
   const [r, setR] = useState<ResearchReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +42,10 @@ export default function TranscriptPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="flex flex-col gap-6">
       <Link href={`/research/${id}`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-blue hover:underline"><ArrowLeft aria-hidden width={16} height={16} />{c.title}</Link>
-      <PageTitle title="Transcript" sub={`${categoryLabel(c.category)} · ${n} valid answers (minimum ${r.minCohort}) · aggregated, no individual answers`}
+      <PageTitle title="Transcript" sub={<span className="flex flex-wrap items-center gap-2"><Pill>{categoryLabel(c.category)}</Pill><Pill tone="ok">{n} answers</Pill><span className="text-[13px]">Totals only, never individual answers</span></span>}
         actions={<Button size="sm" variant="secondary" onClick={csv}>Download CSV</Button>} />
+      <Card className="p-3 sm:p-4"><Aquarium fish={layoutFish(c.agents, 0, 'settled')} phase="settled" className="h-[260px] sm:h-[320px]" /></Card>
+      {view === 'dev' && <ProofTrail campaignId={id} token={session?.sessionToken} />}
       <div className="flex flex-col gap-4">
         {rows.map(({ q, opts }, i) => (
           <Card key={q.id} className="flex flex-col gap-3 p-5">

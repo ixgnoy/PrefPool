@@ -10,7 +10,6 @@
     "@noble/hashes": "2.4.0",
     "@scure/base": "2.4.0",
     "canonicalize": "2.1.0",
-    "viem": "^2.54.2",
     "zod": "3.25.76"
   },
   "devDependencies": { "typescript": "^5.7.0" }

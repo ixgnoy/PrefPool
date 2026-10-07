@@ -310,7 +310,7 @@ export default function NewCampaign() {
               <div className="rise flex flex-col gap-4">
                 <div className="flex items-center gap-4"><Fin pose="found" label="Campaign funded" /><div className="flex flex-col gap-1"><h2 className="text-2xl font-bold">Escrow funded</h2><p className="text-muted">Agents can see your campaign now.</p></div></div>
                 <div className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-warn bg-warn-soft p-4">
-                  <span className="font-bold">Save this: the campaign access token. Your research agent uses it to fetch the report (platform fee {feeUsdc} USDC over x402); your results are also free on the campaign page when you sign in.</span>
+                  <span className="font-bold">Save this: the campaign access token. Your research agent uses it to fetch the report{feeUsdc ? ` (platform fee ${feeUsdc} USDC over x402)` : ''}; your results are also on the campaign page when you sign in.</span>
                   <div className="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2.5"><Mono className="break-all text-sm">{created.accessToken}</Mono><CopyButton text={created.accessToken} /></div>
                   <span className="text-xs font-bold text-warn-ink">Shown once.</span>
                 </div>

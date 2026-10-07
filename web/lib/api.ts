@@ -32,7 +32,7 @@ export interface PublicConfig {
   /** Fixed platform fee for buying a research report over x402 (USDC on Devnet). */
   platformFeeUsdc: number;
   envelopePublicKey: string; reportPublicKey: string; rewardLamports?: string;
-  relayerAddress?: string | null; platformFeePayTo?: string | null; reportRegistryAddress: string | null;
+  relayerAddress?: string | null; platformFeePayTo?: string | null;
   personhood: { appId: string; environment: string; action: string } | null;
 }
 export const getConfig = () => api<PublicConfig>('/config/public');
@@ -107,7 +107,7 @@ export interface CampaignView {
   rewardLamports: string; maxResponses: number; minCohort: number; deadlineMs: number; refundAfterMs: number; rejectReasons: string[];
   answered: number; abstained: { reason: string | null; count: number }[]; envelopes: number;
   fundTxHash: string | null; escrowTxRef: string | null; settlementTxHash: string | null; lastError: string | null;
-  report: { acceptedCount: number; rejectionCounts: Record<string, number>; reportHash: string; evmTx: string | null } | null;
+  report: { acceptedCount: number; rejectionCounts: Record<string, number>; reportHash: string } | null;
   cre: { status: string; log: string } | null;
   agents: AgentTile[]; networkSize: number;
   verifiedHumansOnly: boolean; calibratedAgentsOnly: boolean; humans: { world: number; simulated: number } | null;
@@ -143,12 +143,9 @@ export interface CampaignTrace {
   envelopes: { count: number; firstAtMs: number | null; lastAtMs: number | null; sample: { epk: string; n: string; ciphertextBytes: number } | null };
   creJob: { id: string; status: string; log: string } | null;
   settlementReport: SettlementReport | null; researchReport: ResearchReport | null;
-  evm: { registryAddress: string | null; txHash: string | null };
   fundTx: TxTrace | null; settlementTx: TxTrace | null;
 }
 export const getTrace = (id: string, token?: string) => api<CampaignTrace>(`/campaigns/${id}/trace`, { token });
 
 // ---- explorers ------------------------------------------------------------------------------------------------
 export { explorerTx, explorerAddress } from './config';
-export const basescanTx = (tx: string) => `https://sepolia.basescan.org/tx/${tx}`;
-export const basescanAddress = (a: string) => `https://sepolia.basescan.org/address/${a}`;

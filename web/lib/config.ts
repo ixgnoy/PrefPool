@@ -6,7 +6,6 @@ export const EXPLORER = 'https://explorer.solana.com';
 const clusterQuery = (cluster: string) => (cluster === 'mainnet-beta' ? '' : `?cluster=${cluster}`);
 export const explorerTx = (sig: string, cluster = CLUSTER) => `${EXPLORER}/tx/${sig}${clusterQuery(cluster)}`;
 export const explorerAddress = (a: string, cluster = CLUSTER) => `${EXPLORER}/address/${a}${clusterQuery(cluster)}`;
-export const BASESCAN = 'https://sepolia.basescan.org';
 export const FAUCET_URL = 'https://faucet.solana.com';
 export const PHANTOM_URL = 'https://phantom.com/download';
 export const SOLFLARE_URL = 'https://solflare.com';

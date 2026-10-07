@@ -47,7 +47,7 @@ envval() { # read KEY from .env without sourcing it (values may contain spaces o
   node -e 'const [k]=process.argv.slice(1);const l=require("fs").readFileSync(".env","utf8").split(/\r?\n/).find(x=>x.startsWith(k+"="));if(l){let v=l.slice(k.length+1);const i=v.search(/\s+#/);if(i>=0)v=v.slice(0,i);process.stdout.write(v.trim().replace(/^["\x27]|["\x27]$/g,""))}' "$1"
 }
 REQUIRED=(SUPABASE_DB_URL RELAYER_SECRET_KEY PLATFORM_FEE_PAY_TO ENVELOPE_X25519_PK REPORT_ED25519_PK CRE_PLATFORM_TOKEN CRE_RUNNER_TOKEN SYNTHETIC_SECRET)
-OPTIONAL=(SOLANA_RPC_URL ESCROW_PROGRAM_ID PLATFORM_FEE_USDC REPORT_REGISTRY_ADDRESS WORLD_APP_ID WORLD_RP_ID WORLD_RP_SIGNING_KEY WORLD_ENV)
+OPTIONAL=(SOLANA_RPC_URL ESCROW_PROGRAM_ID PLATFORM_FEE_USDC WORLD_APP_ID WORLD_RP_ID WORLD_RP_SIGNING_KEY WORLD_ENV)
 declare -A V
 for k in "${REQUIRED[@]}"; do V[$k]=$(envval "$k"); [ -n "${V[$k]}" ] || die ".env has no value for $k"; done
 for k in "${OPTIONAL[@]}"; do V[$k]=$(envval "$k"); done

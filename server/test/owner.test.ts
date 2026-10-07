@@ -171,7 +171,7 @@ describe('dev view: trace', () => {
     const t = await setup();
     const cfg = (await request(t.app).get('/api/config/public').expect(200)).body;
     expect(cfg).toMatchObject({ cluster: 'devnet', programId: t.deps.chain.programId, relayerAddress: t.deps.chain.relayerAddress,
-      platformFeeUsdc: 3, platformFeePayTo: null, reportPublicKey: t.deps.config.reportPublicKey, rpcUrl: 'https://api.devnet.solana.com' });
+      platformFeeUsdc: 0, platformFeePayTo: null, reportPublicKey: t.deps.config.reportPublicKey, rpcUrl: 'https://api.devnet.solana.com' });
   });
 });
 

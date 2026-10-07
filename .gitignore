@@ -20,9 +20,6 @@ dist/
 
 # Project docs (never commit)
 /docs/
-evm/out/
-evm/cache/
-evm/broadcast/
 cre/**/.env
 cre/secrets.yaml
 *.wasm

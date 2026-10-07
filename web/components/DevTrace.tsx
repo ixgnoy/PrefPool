@@ -86,7 +86,6 @@ export function DevStrip() {
         {cfg.programId && <span className="flex items-center gap-1">escrow program <AddressLink address={cfg.programId} className="!text-[11.5px] !text-[#7f9ff2]" /></span>}
         {cfg.relayerAddress && <span className="flex items-center gap-1">relayer <AddressLink address={cfg.relayerAddress} className="!text-[11.5px] !text-[#7f9ff2]" /></span>}
         {cfg.platformFeePayTo && <span className="flex items-center gap-1">x402 payTo <AddressLink address={cfg.platformFeePayTo} className="!text-[11.5px] !text-[#7f9ff2]" /> · {cfg.platformFeeUsdc} USDC</span>}
-        <span className="flex items-center gap-1">ReportRegistry {cfg.reportRegistryAddress ? <AddressLink address={cfg.reportRegistryAddress} evm className="!text-[11.5px] !text-[#7f9ff2]" /> : <span className="text-[#f2c14e]">not deployed (simulated)</span>}</span>
         <span className="flex items-center gap-1">CRE envelope pk <span className="text-[#9ba8c2]">{cfg.envelopePublicKey.slice(0, 10)}…</span><CopyButton text={cfg.envelopePublicKey} className="!text-[#7f9ff2]" /></span>
         <span className="flex items-center gap-1">CRE report pk <span className="text-[#9ba8c2]">{cfg.reportPublicKey.slice(0, 10)}…</span><CopyButton text={cfg.reportPublicKey} className="!text-[#7f9ff2]" /></span>
       </div>
@@ -184,11 +183,10 @@ export function DevTrace({ campaignId }: { campaignId: string }) {
             {t.researchReport && <><span className="text-sm font-bold">Research report (owner only)</span><Json value={t.researchReport} /></>}
           </Block>
 
-          <Block step={5} title={`EVM commitment · ${t.evm.txHash ? 'broadcast' : 'simulated'}`} tone={t.settlementReport ? (t.evm.txHash ? 'ok' : 'warn') : 'idle'}>
+          <Block step={5} title="Report hash on Solana" tone={t.settlementTx ? 'ok' : 'idle'}>
             <dl>
-              <Row k="ReportRegistry">{t.evm.registryAddress ? <AddressLink address={t.evm.registryAddress} evm full className="!text-[12px] !text-[#7f9ff2]" /> : 'not configured'}</Row>
               <Row k="campaignId → reportHash">{t.settlementReport ? `${t.campaignId.slice(0, 12)}… → ${t.settlementReport.reportHash}` : '—'}</Row>
-              <Row k="tx">{t.evm.txHash ? <TxLink hash={t.evm.txHash} evm full className="!text-[12px] !text-[#7f9ff2]" /> : 'simulated (dry run)'}</Row>
+              <Row k="where">{t.settlementTx ? 'Settled event of the settle tx below; the escrow program checked the CRE signature over it' : 'committed when settle lands'}</Row>
             </dl>
           </Block>
 

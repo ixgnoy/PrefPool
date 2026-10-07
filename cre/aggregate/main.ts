@@ -1,10 +1,9 @@
 // cre/aggregate/main.ts
 import {
-  EVMClient, HTTPCapability, HTTPClient, Runner, TxStatus, bytesToBase64, bytesToHex, consensusIdenticalAggregation,
-  decodeJson, getNetwork, handler, handlerInTee, ok, prepareReportRequest, text, type HTTPPayload, type NodeRuntime,
+  HTTPCapability, HTTPClient, Runner, bytesToBase64, consensusIdenticalAggregation,
+  decodeJson, handler, handlerInTee, ok, text, type HTTPPayload, type NodeRuntime,
   type Runtime, type TeeRuntime,
 } from '@chainlink/cre-sdk';
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
 import { z } from 'zod';
 import { runPipeline, type CreContext, type EscrowAccount, type ReceivedEnvelope } from '../../shared/src/index.ts';
 
@@ -15,10 +14,6 @@ const configSchema = z.object({
   solanaRpcUrl: z.string().regex(/^https?:\/\/[^\s/]+/),
   // campaign_escrow program id (base58).
   programId: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
-  chainSelectorName: z.literal('ethereum-testnet-sepolia-base-1'),
-  registryAddress: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
-  gasLimit: z.string().regex(/^\d+$/),
-  evmBroadcast: z.boolean(),
   // Task 8.13: run decrypt/validate/aggregate/sign in a Confidential Workflow enclave (handlerInTee).
   // Off by default; the regular DON handler below is unchanged.
   confidential: z.boolean().optional(),
@@ -75,23 +70,6 @@ const postReports = (node: NodeRuntime<Config>, url: string, token: string, payl
   return 'stored'; // normalized ack so every node agrees (server dedupes by reportHash)
 };
 
-/** On-chain report commitment on Base Sepolia: (bytes32 campaignId, bytes32 reportHash). Needs DON consensus. */
-const commitReportHash = (runtime: Runtime<Config>, campaignId: string, reportHash: string): string | null => {
-  const cfg = runtime.config;
-  const network = getNetwork({ chainFamily: 'evm', chainSelectorName: cfg.chainSelectorName });
-  if (!network) throw new Error(`unknown chain ${cfg.chainSelectorName}`);
-  const encoded = encodeAbiParameters(parseAbiParameters('bytes32, bytes32'), [`0x${campaignId}`, `0x${reportHash}`]);
-  const report = runtime.report(prepareReportRequest(encoded)).result();
-  const write = new EVMClient(network.chainSelector.selector)
-    .writeReport(runtime, { receiver: cfg.registryAddress, report, gasConfig: { gasLimit: cfg.gasLimit } })
-    .result();
-  if (write.txStatus !== TxStatus.SUCCESS) throw new Error(write.errorMessage ?? `EVM write status ${write.txStatus}`);
-  const evmTx = write.txHash && write.txHash.length ? bytesToHex(write.txHash) : null;
-  if (cfg.evmBroadcast && !evmTx) throw new Error('broadcast mode but no EVM tx hash');
-  runtime.log(evmTx ? `report committed: ${evmTx}` : 'report commitment: simulated (dry run, no tx)');
-  return evmTx;
-};
-
 const onAggregate = (runtime: Runtime<Config>, payload: HTTPPayload): string => {
   const { campaignId } = decodeJson(payload.input) as { campaignId: string };
   if (!/^[0-9a-f]{64}$/.test(campaignId)) throw new Error('bad campaignId');
@@ -127,14 +105,13 @@ const onAggregate = (runtime: Runtime<Config>, payload: HTTPPayload): string => 
   });
   runtime.log(`campaign ${campaignId}: accepted=${settlement.acceptedCount} rejected=${JSON.stringify(settlement.rejectionCounts)} reportHash=${settlement.reportHash}`);
 
-  const evmTx = commitReportHash(runtime, campaignId, settlement.reportHash);
-
   const ack = runtime
     .runInNodeMode(postReports, consensusIdenticalAggregation<string>())(
-      `${base}/reports`, platformToken, JSON.stringify({ settlement, research, evmTx }),
+      `${base}/reports`, platformToken, JSON.stringify({ settlement, research }),
     )
     .result();
-  return JSON.stringify({ campaignId, acceptedCount: settlement.acceptedCount, reportHash: settlement.reportHash, evmTx, ack });
+  // The report hash goes on-chain on Solana: settle verifies CRE's signature over it and emits it in `Settled`.
+  return JSON.stringify({ campaignId, acceptedCount: settlement.acceptedCount, reportHash: settlement.reportHash, ack });
 };
 
 /**
@@ -142,7 +119,7 @@ const onAggregate = (runtime: Runtime<Config>, payload: HTTPPayload): string => 
  * enclave: the 3 secrets are released by the Vault DON into the enclave, the platform and Solana RPC calls go out from
  * the enclave (no node-mode consensus on ciphertext pages), and runPipeline decrypts, validates, aggregates and signs
  * there. Only the outputs that already leave CRE in the regular design (aggregates, payout list, rejection counts,
- * signed reports) cross back with usingTheDons(), for the EVM commitment that needs DON consensus.
+ * signed reports) leave the enclave.
  * No runtime.log() inside the enclave except the same non-sensitive counts the DON path logs (simulation evidence).
  */
 const onAggregateInTee = (runtime: TeeRuntime<Config>, payload: HTTPPayload): string => {
@@ -182,14 +159,11 @@ const onAggregateInTee = (runtime: TeeRuntime<Config>, payload: HTTPPayload): st
   });
   runtime.log(`[TEE] campaign ${campaignId}: accepted=${settlement.acceptedCount} rejected=${JSON.stringify(settlement.rejectionCounts)} reportHash=${settlement.reportHash}`);
 
-  // One-way door: only the report hash crosses to the DON for the on-chain commitment.
-  const evmTx = commitReportHash(runtime.usingTheDons(), campaignId, settlement.reportHash);
-
   send(`${base}/reports`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...auth },
-    body: JSON.stringify({ settlement, research, evmTx }),
+    body: JSON.stringify({ settlement, research }),
   });
-  return JSON.stringify({ campaignId, acceptedCount: settlement.acceptedCount, reportHash: settlement.reportHash, evmTx, ack: 'stored', tee: true });
+  return JSON.stringify({ campaignId, acceptedCount: settlement.acceptedCount, reportHash: settlement.reportHash, ack: 'stored', tee: true });
 };
 
 const initWorkflow = (config: Config) => [

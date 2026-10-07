@@ -29,10 +29,10 @@ export function createApp(deps: Deps, extra: (app: express.Express) => void = ()
   const api = express.Router();
   api.get('/config/public', (_req, res) => res.json({
     cluster: deps.config.cluster ?? 'devnet', rpcUrl: deps.config.rpcUrl ?? 'https://api.devnet.solana.com', programId: deps.chain.programId,
-    envelopePublicKey: deps.config.envelopePublicKey, rewardLamports: '1500000', platformFeeUsdc: deps.config.platformFeeUsdc,
+    envelopePublicKey: deps.config.envelopePublicKey, rewardLamports: '1500000', platformFeeUsdc: deps.config.platformFeePayTo ? deps.config.platformFeeUsdc : 0, // 0 = reports free with the access token
     // dev view strip (FRONTEND_PRD §5.10): public identifiers only
     relayerAddress: deps.chain.relayerAddress, reportPublicKey: deps.config.reportPublicKey,
-    platformFeePayTo: deps.config.platformFeePayTo ?? null, reportRegistryAddress: deps.config.reportRegistryAddress ?? null,
+    platformFeePayTo: deps.config.platformFeePayTo ?? null,
     personhood: deps.config.personhood
       ? { appId: deps.config.personhood.appId, environment: deps.config.personhood.environment, action: PERSONHOOD_ACTION } : null,
   }));

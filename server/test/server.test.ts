@@ -232,8 +232,8 @@ describe('CRE endpoints, relayer and settlement', () => {
     const out = await runCre(ctx);
     expect(out.settlement.acceptedCount).toBe(16);
     expect(out.settlement.escrowTxRef).toBe(campaignEscrowAddress(deps.chain.programId, id));
-    await request(app).post(`/api/cre/campaigns/${id}/reports`).set(cre).send({ ...out, evmTx: null }).expect(200, { ack: 'stored' });
-    await request(app).post(`/api/cre/campaigns/${id}/reports`).set(cre).send({ ...out, evmTx: null }).expect(200, { ack: 'stored' });
+    await request(app).post(`/api/cre/campaigns/${id}/reports`).set(cre).send(out).expect(200, { ack: 'stored' });
+    await request(app).post(`/api/cre/campaigns/${id}/reports`).set(cre).send(out).expect(200, { ack: 'stored' });
     expect((await request(app).get(`/api/campaigns/${id}`)).body.state).toBe('SETTLEMENT_READY');
     clock.now = deadline + 30_000;
     await tick(deps);
@@ -255,7 +255,7 @@ describe('CRE endpoints, relayer and settlement', () => {
   it('rejects a report signed by another key', async () => {
     const ctx = await aggregated(15);
     const forged = await runCre(ctx, '11'.repeat(32));
-    const res = await request(ctx.app).post(`/api/cre/campaigns/${ctx.id}/reports`).set(cre).send({ ...forged, evmTx: null }).expect(422);
+    const res = await request(ctx.app).post(`/api/cre/campaigns/${ctx.id}/reports`).set(cre).send(forged).expect(422);
     expect(res.body.error).toContain('bad signature');
   });
 
@@ -263,7 +263,7 @@ describe('CRE endpoints, relayer and settlement', () => {
     const ctx = await aggregated(3);
     const out = await runCre(ctx);
     expect(out.settlement.acceptedCount).toBe(0);
-    await request(ctx.app).post(`/api/cre/campaigns/${ctx.id}/reports`).set(cre).send({ ...out, evmTx: null }).expect(200);
+    await request(ctx.app).post(`/api/cre/campaigns/${ctx.id}/reports`).set(cre).send(out).expect(200);
     expect((await request(ctx.app).get(`/api/campaigns/${ctx.id}`)).body.state).toBe('INSUFFICIENT_COHORT');
     ctx.clock.now = ctx.deadline + 61_000;
     await tick(ctx.deps);
@@ -274,7 +274,7 @@ describe('CRE endpoints, relayer and settlement', () => {
 
   it('a relayer restart after settlement does not settle twice', async () => {
     const ctx = await aggregated(15);
-    await request(ctx.app).post(`/api/cre/campaigns/${ctx.id}/reports`).set(cre).send({ ...(await runCre(ctx)), evmTx: null }).expect(200);
+    await request(ctx.app).post(`/api/cre/campaigns/${ctx.id}/reports`).set(cre).send(await runCre(ctx)).expect(200);
     ctx.chainState.settleResult = { status: 'already-spent', txHash: 'e'.repeat(64) };
     ctx.clock.now = ctx.deadline + 61_000;
     await tick(ctx.deps);

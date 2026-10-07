@@ -33,7 +33,6 @@ export function Aquarium({ fish, phase, selected, onSelect, className, mini = fa
         })}
       </div>
       {ring && <span className="absolute left-1/2 top-2 -translate-x-1/2 whitespace-nowrap rounded-full bg-ok px-3 py-1 font-pixel text-[15px] font-bold text-on-accent">School formed</span>}
-      {!mini && phase === 'settled' && <div className="absolute bottom-1.5 right-2"><Fin pose="paid" label="Fin delighted: payouts landed" /></div>}
       {!mini && phase === 'insufficient' && <div className="absolute bottom-1.5 right-2"><Fin pose="sleeping" label="Fin sleeping: cohort too small" /></div>}
     </div>
   );

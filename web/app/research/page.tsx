@@ -29,7 +29,7 @@ export default function ResearchDashboard() {
         <span className="rounded bg-blue-soft px-1.5 py-0.5 text-[11px] font-bold text-blue">x402</span>
         <p className="min-w-0 flex-1 basis-72 text-[14px] text-muted">
           Your own results are free on each campaign page. A research agent fetching a report with the campaign&apos;s access token
-          pays a fixed <b className="font-mono text-ink">{feeUsdc} USDC</b> platform fee (Devnet) over x402, straight from its wallet.
+          {feeUsdc ? <>pays a fixed <b className="font-mono text-ink">{feeUsdc} USDC</b> platform fee (Devnet) over x402, straight from its wallet.</> : 'gets it free too.'}
         </p>
       </Card>
       {list === null ? <div className="h-72 animate-pulse rounded-2xl bg-surface" /> : list.length === 0 ? (
