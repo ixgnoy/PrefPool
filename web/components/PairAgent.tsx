@@ -8,7 +8,7 @@ import { TABS, snippet, type Tab } from '@/lib/pairSnippets';
 
 
 /** Shared by onboarding step 4 and /seller/agent. */
-export function PairAgent({ onConnected, allTabs = false, policy: draft }: { onConnected?(): void; allTabs?: boolean; policy?: OwnerPolicy }) {
+export function PairAgent({ onConnected, allTabs = false, demoAgent = true, policy: draft }: { onConnected?(): void; allTabs?: boolean; demoAgent?: boolean; policy?: OwnerPolicy }) {
   const { session, agent, refreshAgent, policy: saved, liveToken, setLiveToken } = useStore();
   const policy = draft ?? saved;
   const [token, setToken] = useState<string | null>(null);
@@ -98,14 +98,14 @@ export function PairAgent({ onConnected, allTabs = false, policy: draft }: { onC
         </div>
       </Card>
 
-      <Card className="flex items-center gap-3 p-4">
+      {demoAgent && <Card className="flex items-center gap-3 p-4">
         <div className="flex flex-1 flex-col gap-0.5">
           <span className="text-[15px] font-bold">Demo agent in this tab</span>
           <span className="text-[13px] text-muted"><b className="text-ink">Demo only: its answers are random, not your opinions.</b> It follows your rules and encrypts answers like a real agent, but only while this tab is open. For real answers, pair Claude Code or OpenClaw above.</span>
           {agent?.kind === 'plugin' && !live && <span className="text-[13px] font-bold text-warn-ink">Turning this on issues a new token, so your paired plugin stops working.</span>}
         </div>
         <Toggle checked={live} onChange={setLive} label="" ariaLabel="Run the demo agent in this tab" />
-      </Card>
+      </Card>}
 
       {error && <p role="alert" className="text-sm font-bold text-danger-ink">{error}</p>}
       <div aria-live="polite" className={cx('flex items-center gap-3 rounded-2xl px-4 py-3.5', paired ? 'bg-ok-soft' : 'bg-subtle')}>

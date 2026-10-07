@@ -96,7 +96,7 @@ export function FundEscrow({ campaignId, budgetSol, onFunded }: { campaignId: st
       {phase === 'ready' && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-blue-soft p-4">
           <span className="flex-1 text-sm">Ready to move {sol(budget)} into the campaign&apos;s escrow. Your wallet should be set to <b>Devnet</b>.</span>
-          <Button onClick={start} disabled={!session}>Fund escrow</Button>
+          <Button onClick={start} disabled={!session} data-guide="rn-fund">Fund escrow</Button>
         </div>
       )}
       {escrow && <p className="text-sm text-muted">Escrow account: <AddressLink address={escrow} /></p>}

@@ -5,6 +5,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { StoreProvider } from '@/lib/store';
 import { Header } from '@/components/Header';
+import { Guide } from '@/components/Guide';
 import { DevStrip } from '@/components/DevTrace';
 import { WebAgentRunner } from '@/components/WebAgentRunner';
 import { StillSea } from '@/components/StillSea';
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Header />
           <DevStrip />
           <WebAgentRunner />
+          <Guide />
           <main className="mx-auto w-full max-w-[clamp(1280px,90vw,2200px)] px-4 pb-28 pt-6 sm:px-8 sm:pt-8">{children}</main>
         </StoreProvider>
       </body>

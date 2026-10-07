@@ -27,7 +27,7 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: keyof type
 
 export function Button({ variant = 'primary', size = 'md', href, className, children, type = 'button', ...rest }: BtnProps) {
   const cls = cx('inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold transition disabled:pointer-events-none disabled:opacity-45', SIZE[size], BTN[variant], className);
-  if (href) return <Link href={href} className={cls}>{children}</Link>;
+  if (href) return <Link href={href} className={cls} data-guide={(rest as { 'data-guide'?: string })['data-guide']}>{children}</Link>;
   return <button type={type} className={cls} {...rest}>{children}</button>;
 }
 

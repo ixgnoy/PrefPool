@@ -71,8 +71,10 @@ export default function NewCampaign() {
     if (m) {
       try {
         const json = atob(m[1]!.replace(/-/g, '+').replace(/_/g, '/'));
-        const x = JSON.parse(json) as { title?: string; category?: string; questions?: Question[]; deadlineMinutes?: number };
-        setD((p) => ({ ...p, title: x.title ?? p.title, category: x.category ?? p.category, questions: x.questions ?? p.questions, deadlineMin: x.deadlineMinutes ?? p.deadlineMin }));
+        const x = JSON.parse(json) as { title?: string; category?: string; questions?: Question[]; deadlineMinutes?: number;
+          rewardSol?: number; maxResponses?: number; minCohort?: number };
+        setD((p) => ({ ...p, title: x.title ?? p.title, category: x.category ?? p.category, questions: x.questions ?? p.questions, deadlineMin: x.deadlineMinutes ?? p.deadlineMin,
+          rewardSol: x.rewardSol ?? p.rewardSol, maxResponses: x.maxResponses ?? p.maxResponses, minCohort: x.minCohort ?? p.minCohort }));
       } catch { /* ignore malformed drafts */ }
     }
     // Resume funding an existing campaign (monitor's "Fund it"): /research/new?fund=<campaignId>.
@@ -311,7 +313,7 @@ export default function NewCampaign() {
                   <div className="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2.5"><Mono className="break-all text-sm">{created.accessToken}</Mono><CopyButton text={created.accessToken} /></div>
                   <span className="text-xs font-bold text-warn-ink">Shown once.</span>
                 </div>
-                <Button size="lg" className="self-start" onClick={() => router.push(`/research/${created.id}`)}>Open campaign monitor</Button>
+                <Button size="lg" className="self-start" onClick={() => router.push(`/research/${created.id}`)} data-guide="rn-monitor">Open campaign monitor</Button>
               </div>
             ) : (
               <>
@@ -328,8 +330,8 @@ export default function NewCampaign() {
               {step > 0 && <Button variant="secondary" onClick={() => { setScreening('idle'); go(step - 1); }}>{screening === 'rejected' ? 'Edit campaign' : 'Back'}</Button>}
               <div className="ml-auto">
                 {step < 4
-                  ? <Button onClick={() => go(step + 1)} disabled={!canNext}>Continue</Button>
-                  : <Button onClick={submit} disabled={screening === 'running' || !session}>{screening === 'running' ? 'Checking…' : screening === 'rejected' ? 'Check again' : 'Check & fund'}</Button>}
+                  ? <Button onClick={() => go(step + 1)} disabled={!canNext} data-guide="rn-continue">Continue</Button>
+                  : <Button onClick={submit} disabled={screening === 'running' || !session} data-guide="rn-submit">{screening === 'running' ? 'Checking…' : screening === 'rejected' ? 'Check again' : 'Check & fund'}</Button>}
               </div>
             </div>
           )}
