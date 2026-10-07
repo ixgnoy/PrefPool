@@ -62,6 +62,38 @@ describe('screenCampaign', () => {
     expect(screenCampaign(ask('Do you remind your owner of birthdays?'), now)).toEqual([]);
     expect(screenCampaign(ask('Do you use public key authentication for SSH?'), now)).toEqual([]);
   });
+  it('rejects account asks, address-shaped strings, emails and more location asks (G4b review)', () => {
+    const ask = (text: string, options = ['Yes', 'No', 'Not sure']) => ({ ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text, options }] });
+    const id = 'identifying question: q1';
+    expect(screenCampaign(ask('What is your Solana pubkey?'), now)).toContain(id);
+    expect(screenCampaign(ask('What is your wallet?'), now)).toContain(id);
+    expect(screenCampaign(ask('What is your payout wallet?'), now)).toContain(id);
+    expect(screenCampaign(ask('Is your Solana wallet 7xKX...?'), now)).toContain(id);
+    expect(screenCampaign(ask('What is the public key of your wallet?'), now)).toContain(id);
+    expect(screenCampaign(ask('Which one is yours?', ['7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', 'Other', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('Is this your wallet: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?'), now)).toContain(id);
+    expect(screenCampaign(ask('Which one is yours?', ['0x52908400098527886E0F7030069857D2E4169EE7', 'Other', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('Which one is yours?', ['9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', 'Other', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('Which one is yours?', ['ali@example.com', 'bob@example.org', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('Which city is your owner in?', ['KL', 'Penang', 'Other']), now)).toContain(id);
+    expect(screenCampaign(ask('Does your owner reside in Malaysia?'), now)).toContain(id);
+    expect(screenCampaign(ask('What year was your owner born?', ['Before 1990', '1990 or later', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('Where does your owner work?', ['Office', 'Home', 'Not sure']), now)).toContain(id);
+    expect(screenCampaign(ask('Is your owner currently living in Kuala Lumpur?'), now)).toContain(id);
+    expect(screenCampaign(ask('Which do you prefer?', ['Living in Kuala Lumpur', 'Your owner lives in Penang', 'Not sure']), now)).toContain(id);
+  });
+  it('does not treat wallet products, public key auth or long normal options as identifying (G4b review)', () => {
+    const ask = (text: string, options = ['Yes', 'No', 'Not sure']) => ({ ...spec, questions: [{ id: 'q1', type: 'single_choice' as const, text, options }] });
+    expect(screenCampaign(ask('Do you use public key authentication for SSH?'), now)).toEqual([]);
+    expect(screenCampaign(ask('Do you use a crypto wallet?'), now)).toEqual([]);
+    expect(screenCampaign(ask('Does your account setup start with email verification?'), now)).toEqual([]);
+    expect(screenCampaign(ask('Which wallet address format confuses you most?', ['Base58', 'Hex', 'Not sure']), now)).toEqual([]);
+    expect(screenCampaign(ask('What is your preferred wallet?', ['Phantom', 'Solflare', 'Other']), now)).toEqual([]);
+    expect(screenCampaign(ask('What is the wallet app you use most?', ['Phantom', 'Solflare', 'Other']), now)).toEqual([]);
+    expect(screenCampaign(ask('Is your wallet funded?'), now)).toEqual([]);
+    expect(screenCampaign(ask('Which frameworks do you use?', ['Internationalization frameworks', 'Supercalifragilisticexpialidocious', 'Other']), now)).toEqual([]);
+    expect(screenCampaign(ask('Which do you use?', ['Characterizationsandinternationalizationsframeworks', 'Other', 'Not sure']), now)).toEqual([]);
+  });
   it('rejects questions about credentials (keys, passwords, how secrets are stored)', () => {
     expect(screenCampaign({ ...spec, category: 'credentials' }, now)).toContain('sensitive category: credentials');
   });

@@ -55,32 +55,68 @@ const ESCAPE = /^(none|not applicable|n\/a|other\b|don['\u2019]?t know|not sure|
 // "< a second" and "<1s" are comparisons, not markup.
 const MARKUP = /https?:\/\/|www\.|`|\]\(|<!|<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?>|<\/?(?:script|iframe|img|svg|style|object|embed|link|meta)\b/i;
 // Abuse (G4b). Campaigns ask about an agent's experience; a stem that commands work, or text that carries code or
-// arithmetic, is labor extraction, not research. Imperatives only count at the start of the stem ("Which tools ...
-// do you use to translate" passes); "Can you pay with crypto?" passes because "pay" is not a work verb.
-const TASK_REQUEST = [
-  /^(?:(?:please|can you|could you|would you)\s+)?(?:write|fix|debug|solve|compute|calculate|translate|summari[sz]e|generate|implement|explain|draft|rewrite|refactor|convert|classify|prove|evaluate|simplify|correct|complete|rank|find the (?:bug|error|mistake))\b/i,
-  // Grading items with one right answer: "Which of these SQL statements is correct?". "... is correct for you" is a preference.
-  /\bwhich\s+(?:(?:of\s+these|one)\s+)?(?:[\w-]+\s+){0,3}(?:is|are)\s+(?:the\s+)?(?:correct|right|valid|accurate|grammatical|true)(?:\s+answer)?\b(?!\s+(?:for|in|about|of)\b)/i,
+// arithmetic, is labor extraction, not research. Questions about the agent's own work ("Do you translate documents for
+// your owner?") pass: the language and grading patterns only apply when the stem is not about "you".
+/** Quoted text is the object of a task ("the French for 'thank you'"), not its subject; dropped before looking for "you". */
+const QUOTED = /(^|[\s(])['"\u2018\u201C][^'"\u2018\u2019\u201C\u201D]*['"\u2019\u201D]/g;
+const ABOUT_YOU = /\b(?:you|your|yours)\b/i;
+const FIRST_PERSON = /^(?:I|My|We|Our)\b/;
+// A leading work verb is a command; followed by "-" or ":" it is a label ("Debug: how often ...").
+const TASK_VERB = /^(?:(?:please|can you|could you|would you)\s+)?(?:write|fix|debug|solve|compute|calculate|translate|summari[sz]e|generate|implement|explain|draft|rewrite|refactor|convert|classify|prove|evaluate|simplify|correct|complete|rank|proofread|paraphrase|transcribe|find the (?:bug|error|mistake))\b(?!\s*[-:\u2013])/i;
+const TASK_ALWAYS = [
+  TASK_VERB,
+  /_{2,}/, // fill in the blank
+  /\b(?:correct|right|valid|bug-free|error-free)\s+(?:translation|answer|version|output|spelling|completion|solution|implementation)s?\b/i,
+  // A work object: "this essay?", "the following snippet:", "this function returns ...".
+  /\b(?:this|that|these|the following)\s+(?:code|snippets?|functions?|essays?|programs?|quer(?:y|ies)|equations?|scripts?|regex(?:es)?|proofs?)\b(?=\s*(?:[?:.,;!"'\u2018-\u201D]|$)|\s+(?:is|are|has|have|contains?|does|do|did|will|would|should|in|into|from|for|to|and|below|above|prints?|outputs?|returns?)\b)/i,
+  /\bwhat\s+(?:does|will|would|did)\s+(?:this|that|these|the following)\b[^?]*\b(?:print|output|return|evaluate to|produce|log)\b/i,
 ];
+const LANGUAGES = 'English|French|Spanish|German|Italian|Portuguese|Dutch|Russian|Polish|Turkish|Greek|Hebrew|Arabic|Persian|Hindi|Urdu|Bengali|Tamil|Thai|Vietnamese|Indonesian|Malay|Tagalog|Filipino|Chinese|Mandarin|Cantonese|Japanese|Korean|Swahili|Latin';
+const TASK_UNLESS_ABOUT_YOU = [
+  /\btranslat\w*/i,
+  new RegExp(String.raw`\b(?:in|into)\s+(?:${LANGUAGES})\b`, 'i'),
+  /\b[Ww]hat(?:['\u2019]s|\s+is)\s+the\s+[A-Z][a-z]+\s+(?:word\s+)?for\b/, // "What is the French for ..."; case-sensitive
+  /\bbest\s+(?:translation|answer|version|output|completion|solution)s?\b/i,
+  /\b(?:this|that|these|the following)\s+(?:statements?|answers?|texts?|sentences?|paragraphs?)\b/i,
+];
+// Grading items with one right answer: "Which of these SQL statements is correct?". Not when the options describe the
+// agent ("I pay by card") or the stem is about "you"; "... is correct for you" is a preference.
+const GRADING = /\bwhich\s+(?:(?:of\s+these|of\s+the\s+following|one)\s+)?(?:[\w-]+\s+){0,3}(?:is|are)\s+(?:the\s+)?(?:most\s+)?(?:correct|right|valid|accurate|grammatical|true)(?:\s+answer)?\b(?!\s+(?:for|in|about|of)\b)/i;
 // Code, case-sensitive: only structural signals. Words like "function" or "code" and calls like "useState()" are prose.
-const CODE = /[{}]|=>|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=|\bfunction\s*[\w$]*\s*\(|\bdef\s+\w+\s*\(|\b(?:elif|printf|console\.log|System\.out)\b|#include\b|\bSELECT\b.+\bFROM\b/;
+const CODE = /[{}]|=>|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=|\bfunction\s*[\w$]*\s*\(|\bdef\s+\w+\s*\(|\bprint\s*\((?=[^)]*[\d'"*+])|\b(?:elif|printf|console\.log|System\.out)\b|#include\b|\bSELECT\b.+\bFROM\b/;
 // Arithmetic. "1-5", "$20-100", "10+ times" and "24/7" are ranges and phrases, not sums: + and / only count with spaces
-// on both sides ("2 + 2", "100 / 4") or after "what is".
+// on both sides ("2 + 2", "100 / 4") or after "what is". Likert anchors ("1 = 0 times") are stripped before this runs.
 const MATH = [
-  /\d\s*[*\u00D7\u00F7^]\s*\d/,
+  /\d\s*(?:\*\*|[*\u00D7\u00F7^])\s*\d/,
   /\d\s+[+/]\s+\d/,
+  /\d\s*=\s*-?\d/,
   /\bwhat(?:['\u2019]s|\s+is)\s+-?\d[\d.,]*\s*[-+*/\u00D7\u00F7^x]\s*\d/i,
+  /\d\s+(?:times|plus|minus|multiplied\s+by|divided\s+by|to\s+the\s+power\s+of|mod(?:ulo)?)\s+-?\d/i,
+  /(?:\b\d+[a-z]|\b[a-z])\s*(?:\*\*|[-+*/^])\s*\d+\s*=/i, // 2x + 3 = 11
+  /\bwhat\s+(?:does|do|is)\s+[a-z]\s+equals?\b/i,
+  /\bis\s+-?\d[\d,]*\s+(?:a\s+)?(?:prime|even|odd|divisible|perfect\s+square|multiple)\b/i,
   /\b(?:sqrt|square root of|integral of|derivative of|solve for)\b/i,
 ];
-// Secrets of the agent or the owner. "password manager" is a product and passes; "your password" does not.
-const CREDENTIAL = [
-  /\b(?:api[ _-]?keys?|secret[ _-]?keys?|private[ _-]?keys?|signing keys?|key ?pairs?|seed phrases?|recovery phrases?|mnemonics?|passphrases?|(?:access|bearer|auth|refresh|session) tokens?|client secrets?|credentials?)\b/i,
-  /(?:^|\s)\.env\b|\benv(?:ironment)?\s+var(?:iable)?s?\b/i,
-  /\b(?:openai|anthropic|github|solana|wallet|ssh|gpg)\s+(?:secret\s+)?keys?\b/i,
-  /\b(?:your|owner['\u2019]?s|their|the)\s+passwords?\b(?!\s+managers?\b)/i,
-  // Env var names, case-sensitive so prose like "max_token" does not count.
-  /\b[A-Z][A-Z0-9_]*_(?:KEY|SECRET|TOKEN|PASSWORD|PASSPHRASE|MNEMONIC)S?\b/,
+// Secrets. Values and the places they live always block; naming an auth mechanism only warns (G4b decision):
+// "How do you authenticate to APIs? (API keys / OAuth)" is research, "Where does your owner store API keys?" is not.
+const POSSESSIVE_SRC = String.raw`(?:your|owner['\u2019]?s|their|its|the agent['\u2019]?s)`;
+const POSSESSIVE = new RegExp(String.raw`\b${POSSESSIVE_SRC}`, 'i');
+const SECRET = [
+  /\b(?:private|secret|signing|signer)[ _-]?keys?\b|\bclient[ _-]?secrets?\b/i,
+  /\b(?:seed|secret|recovery|backup|wallet|mnemonic)\s+(?:phrases?|words?)\b|\bmnemonics?\b|\b(?:12|24|twelve|twenty[ -]four)[ -]word\b/i,
+  /\bid\.json\b|\bkey ?files?\b/i,
+  /(?:^|\s)\.env\b/i,
+  /\b[A-Z][A-Z0-9_]*_(?:KEY|SECRET|TOKEN|PASSWORD|PASSPHRASE|MNEMONIC|SEED)S?\b/, // env var names; case-sensitive
+  new RegExp(String.raw`\b${POSSESSIVE_SRC}\s+(?:\w+\s+)?passwords?\b(?!\s+managers?\b)`, 'i'),
+  new RegExp(String.raw`\b${POSSESSIVE_SRC}\s+(?:wallet\s+)?seeds?\b`, 'i'), // "your random seed" passes
+  new RegExp(String.raw`\b${POSSESSIVE_SRC}\s+(?:\w+\s+)?(?:secrets?|pins?|otps?|2fa|totp)\b(?!\s+(?:apps?|methods?|devices?|providers?|managers?|settings?)\b)`, 'i'),
 ];
+// Probing a secret a few characters at a time: a probe word, a secret-ish noun and a possessive, anywhere, any order.
+const PROBE = /\b(?:first|last|\d+(?:st|nd|rd|th))\s+(?:\w+\s+)?(?:char(?:acter)?s?|letters?|digits?|bytes?|words?)\b|\b(?:chars?|characters?|letters?|digits?|bytes?|prefix(?:es)?|suffix(?:es)?)\b|\b(?:starts?|begins?|ends?|starting|beginning|ending)\s+(?:with|in)\b|\b(?:letter|character|byte|digit)\s+(?:starts?|begins?|ends?)\b/i;
+const SECRETISH = /\b(?:keys?|secrets?|tokens?|seeds?|phrases?|mnemonics?|signers?|pubkeys?|address(?:es)?|wallets?|passwords?|pins?|otps?|key ?files?)\b|\bid\.json\b/i;
+const MECHANISM = /\b(?:(?:api[ _-]?keys?|(?:access|bearer|auth|refresh|session|oauth|api)\s+tokens?|credentials?|env(?:ironment)?\s+var(?:iable)?s?|key ?pairs?|passphrases?|(?:openai|anthropic|github|solana|wallet|ssh|gpg)\s+keys?)\b|passwords?\b(?!\s+managers?\b))/i;
+// A mechanism plus "your" plus where/what it is asks for the secret itself.
+const VALUE_ASK = /\b(?:stored?|stores|storing|kept|where|values?|contains?|containing|starts?|first|paste|share|send|show|reveal|holds?)\b/i;
 // Printable ASCII plus Latin-1/Latin Extended letters, typographic dashes/quotes/ellipsis and the euro sign.
 const ODD_CHARS = /[^\x09\x0A\x0D\x20-\x7E\u00A0-\u024F\u2010-\u2027\u20AC]/;
 const NUM = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`;
@@ -100,10 +136,27 @@ export function lintQuestion(q: Question): LintIssue[] {
 
   if (MARKUP.test(q.text) || opts.some((o) => MARKUP.test(o))) issue('markup', 'block', 'no links, HTML or code in a question');
   const all = [q.text, ...opts];
-  if (TASK_REQUEST.some((r) => r.test(stem.trim())) || all.some((t) => CODE.test(t) || MATH.some((r) => r.test(t)))) {
+  const joined = all.join('\n');
+  const stemT = stem.trim();
+  const aboutYou = ABOUT_YOU.test(stemT.replace(QUOTED, '$1'));
+  const described = opts.filter((o) => !ESCAPE.test(o.trim()));
+  const firstPerson = described.length > 0 && described.every((o) => FIRST_PERSON.test(o.trim()));
+  const mathTexts = [q.type === 'likert_5' ? stripLikertAnchors(q.text) : q.text, ...opts];
+  if (
+    TASK_ALWAYS.some((r) => r.test(stemT)) ||
+    (!aboutYou && TASK_UNLESS_ABOUT_YOU.some((r) => r.test(stemT))) ||
+    (!aboutYou && !firstPerson && GRADING.test(stemT)) ||
+    all.some((t) => CODE.test(t)) ||
+    mathTexts.some((t) => MATH.some((r) => r.test(t)))
+  ) {
     issue('task_request', 'block', 'campaigns ask about experience; they must not ask the agent to do work (code, maths, translation)');
   }
-  if (all.some((t) => CREDENTIAL.some((r) => r.test(t)))) issue('credential_ask', 'block', 'never ask about keys, passwords, tokens or secrets');
+  const secret =
+    all.some((t) => SECRET.some((r) => r.test(t))) ||
+    (PROBE.test(joined) && SECRETISH.test(joined) && POSSESSIVE.test(joined)) ||
+    (MECHANISM.test(joined) && POSSESSIVE.test(joined) && VALUE_ASK.test(joined));
+  if (secret) issue('credential_ask', 'block', 'never ask about keys, passwords, tokens or secrets');
+  else if (MECHANISM.test(joined)) issue('auth_mechanism', 'warn', "mentions credentials; ask how agents authenticate, never about a secret's value or where it is kept");
   if (HARD_NEGATION.some((r) => r.test(stem))) issue('negated_stem', 'block', 'ask it positively ("which do you use", not "which do you NOT use")');
   else if (SOFT_NEGATION.test(stem)) issue('negation', 'warn', 'a negative in the question; small models misread these, prefer a positive wording');
   if (ODD_CHARS.test(q.text) || opts.some((o) => ODD_CHARS.test(o))) issue('odd_chars', 'warn', 'unusual characters; models are sensitive to typos and symbols');
