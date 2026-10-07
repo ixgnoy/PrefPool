@@ -161,6 +161,20 @@ describe('lint: space-only likert anchors need a capitalized label', () => {
   });
 });
 
+describe('lint: "1 is/being X" likert anchors', () => {
+  const lk = (text: string) => rules({ id: 'q', type: 'likert_5', text }, 'block');
+  it('accepts anchors written with is, being or means', () => {
+    expect(lk('Rate from 1 to 5, 1 being worst and 5 being best: how good is checkout?')).toEqual([]);
+    expect(lk('How good is checkout? Rate it where 1 is poor and 5 is excellent')).toEqual([]);
+    expect(lk('How good is checkout, where 1 means poor and 5 means excellent?')).toEqual([]);
+  });
+  it('still blocks the earlier false-anchor cases', () => {
+    expect(lk('In the last 1 month, how often did checkout take over 5 minutes?')).toContain('likert_anchors');
+    expect(lk('In 1 week, how often do you NOT pay within 5 days? (1 = never, 5 = always)')).toContain('negated_stem');
+    expect(lk('On a 1-5 scale, how good is checkout?')).toContain('likert_anchors');
+  });
+});
+
 describe('lintCampaign', () => {
   it('prefixes every message with the question id', () => {
     const issues = lintCampaign({ category: 'payments', questions: [sc('Which?', ['Card', 'Both'], 'q4')] });

@@ -22,8 +22,9 @@ const norm = (s: string) => s.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p
 // Labels start with a letter (any script) or a digit. "1-5 scale" and "from 1 to 5" are not labels.
 // A separator (= : - en dash, or "(") is required; the space-only form ("1 Very dissatisfied - 5 Very satisfied")
 // is accepted separately and only with a capitalized label, so "in the last 1 month ... over 5 minutes" is not a scale.
+// "1 is poor ... 5 is excellent" and "1 being worst ... 5 being best" also count as labeled.
 // Case-sensitive on purpose (no `i`); not written with (?-i:) groups because shared also runs in browsers.
-const ANCHOR_SEP = String.raw`\s*(?:[=:\-\u2013]\s*|\(\s*)`;
+const ANCHOR_SEP = String.raw`\s*(?:[=:\-\u2013]\s*|\(\s*)|\s+(?:is|being|means)\s+`;
 const ANCHOR = String.raw`\b1(?:${ANCHOR_SEP})(?!5\b|to\b)(?:\p{L}|\d)[^\n]*?\b5(?:${ANCHOR_SEP})(?:\p{L}|\d)[^,;.?)\n]*\)?`;
 const SPACE_ANCHOR = String.raw`\b1\s+\p{Lu}[^\n]*?\b5\s+\p{Lu}[^,;.?)\n]*\)?`;
 const LIKERT_ANCHORS = [new RegExp(ANCHOR, 'iu'), new RegExp(SPACE_ANCHOR, 'u')];
