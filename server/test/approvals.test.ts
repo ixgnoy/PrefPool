@@ -44,11 +44,12 @@ describe('answer approvals', () => {
     expect(st.body.approvals).toEqual([{ campaignId: w.campaignId, state: 'approved' }]);
     expect((await request(w.app).get('/api/agents/mine/approvals').set(w.web).expect(200)).body.pending).toEqual([]);
   });
-  it('keeps the first request; a later copy does not replace it', async () => {
+  it('keeps the first request; the same copy again is a no-op, a different one is refused', async () => {
     const w = await activeCampaign();
     await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/approval`).set(w.agent).send(w.copy).expect(204);
+    await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/approval`).set(w.agent).send(w.copy).expect(204);
     const second = sealEnvelope(w.key.publicKey, w.campaignId, w.owner.address, { q1: 1, q2: 1, q3: 1 });
-    await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/approval`).set(w.agent).send(second).expect(204);
+    expect((await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/approval`).set(w.agent).send(second).expect(409)).body.code).toBe('APPROVAL_EXISTS');
     expect((await request(w.app).get('/api/agents/mine/approvals').set(w.web)).body.pending[0].envelope).toEqual(w.copy);
   });
   it('lets the owner reject, and validates the decision', async () => {

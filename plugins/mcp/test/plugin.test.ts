@@ -423,6 +423,91 @@ describe('agent-survey MCP plugin', () => {
     await w.srv.close();
   });
 
+  const heldAndApproved = async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const dataDir = mkdtempSync(join(tmpdir(), 'as-'));
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir, agentToken: w.agentToken });
+    await call('set_policy', approveAll);
+    expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } })).json.pendingApproval).toBe(true);
+    await request(w.app).post(`/api/agents/mine/approvals/${w.campaignId}`).set({ Authorization: `Bearer ${w.session}` }).send({ decision: 'approve' }).expect(204);
+    const file = join(dataDir, 'agent-survey.json');
+    const local = () => JSON.parse(readFileSync(file, 'utf8'));
+    return { w, call, file, local };
+  };
+
+  it('a flush whose envelope the server already has (DUPLICATE) counts it as sent', async () => {
+    const { w, call, local } = await heldAndApproved();
+    // An earlier flush reached the server but died before recording it locally.
+    await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/envelope`).set({ Authorization: `Bearer ${w.agentToken}` })
+      .send(local().pending[w.campaignId].envelope).expect(204);
+    expect((await call('check_approvals')).json).toMatchObject({ submitted: [w.campaignId], failed: [] });
+    expect(local()).toMatchObject({ answeredToday: 1, pending: {} });
+    expect(local().decided).toContain(w.campaignId);
+    expect((await request(w.app).get('/api/agents/mine/answer-copies').set({ Authorization: `Bearer ${w.session}` })).body.copies).toHaveLength(1);
+    await w.srv.close();
+  });
+
+  it('a paused agent keeps the approved answer and sends it once unpaused', async () => {
+    const { w, call, local } = await heldAndApproved();
+    await request(w.app).put('/api/agents/mine').set({ Authorization: `Bearer ${w.session}` }).send({ paused: true }).expect(200);
+    expect((await call('check_approvals')).json).toMatchObject({ waiting: [w.campaignId], submitted: [], failed: [] });
+    expect(local().pending[w.campaignId]).toBeDefined();
+    await request(w.app).put('/api/agents/mine').set({ Authorization: `Bearer ${w.session}` }).send({ paused: false }).expect(200);
+    expect((await call('check_approvals')).json.submitted).toEqual([w.campaignId]);
+    expect((await w.deps.db.query(`select 1 from envelopes where campaign_id = $1`, [w.campaignId])).length).toBe(1);
+    await w.srv.close();
+  });
+
+  it('a held answer the server has no request for is queued again', async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', approveAll);
+    await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    await w.deps.db.query(`delete from answer_approvals where campaign_id = $1`, [w.campaignId]); // the request never arrived
+    expect((await call('check_approvals')).json.waiting).toEqual([w.campaignId]);
+    expect((await request(w.app).get('/api/agents/mine/approvals').set({ Authorization: `Bearer ${w.session}` })).body.pending).toHaveLength(1);
+    await w.srv.close();
+  });
+
+  it('a refused approval request rolls back the local hold', async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const dataDir = mkdtempSync(join(tmpdir(), 'as-'));
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir, agentToken: w.agentToken });
+    await call('set_policy', approveAll);
+    // An explicit abstain this machine does not know about (e.g. from another install): the server refuses the request.
+    await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/decision`).set({ Authorization: `Bearer ${w.agentToken}` })
+      .send({ kind: 'abstain', reason: 'task request' }).expect(204);
+    const r = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    expect(r.isError).toBe(true);
+    expect(r.text).toMatch(/Not queued for approval: 409/);
+    expect(JSON.parse(readFileSync(join(dataDir, 'agent-survey.json'), 'utf8')).pending).toEqual({});
+    await w.srv.close();
+  });
+
+  it('a flush does not overwrite what another tool saved meanwhile', async () => {
+    const { w, call, local } = await heldAndApproved();
+    const [flushed, fact] = await Promise.all([
+      call('check_approvals'),
+      call('remember_owner_fact', { fact: 'spends about $40 a month on AI tools', categories: ['spending'] }),
+    ]);
+    expect(flushed.json.submitted).toEqual([w.campaignId]);
+    expect(fact.isError).toBe(false);
+    expect(local().facts.map((f: { text: string }) => f.text)).toEqual(['spends about $40 a month on AI tools']);
+    expect(local()).toMatchObject({ answeredToday: 1, pending: {} });
+    await w.srv.close();
+  });
+
+  it('concurrent flushes send a held answer once', async () => {
+    const { w, call, local } = await heldAndApproved();
+    const [a, b] = await Promise.all([call('check_approvals'), call('check_approvals')]);
+    expect([...a.json.submitted, ...b.json.submitted]).toEqual([w.campaignId, w.campaignId]); // one shared flush
+    expect(local().answeredToday).toBe(1);
+    await w.srv.close();
+  });
+
   it('approve_all fails with a pointer to the web when the owner has no transcript key', async () => {
     const w = await world();
     const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });

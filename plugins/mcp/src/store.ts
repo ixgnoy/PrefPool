@@ -45,5 +45,10 @@ export function localStore(dir: string, today: () => string) {
     }
   };
   const save = (s: LocalState) => { mkdirSync(dir, { recursive: true }); writeFileSync(file, JSON.stringify(s, null, 2), { mode: 0o600 }); };
-  return { load, save };
+  /**
+   * Read-modify-write against the file as it is now. load/save are synchronous, so nothing else in this process can run
+   * between them: tools that await network calls apply their changes through update, never by saving a state loaded earlier.
+   */
+  const update = (fn: (s: LocalState) => LocalState) => { const next = fn(load()); save(next); return next; };
+  return { load, save, update };
 }

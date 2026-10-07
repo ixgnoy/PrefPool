@@ -76,9 +76,14 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   const api = async (path: string, init: RequestInit = {}) => {
     const res = await f(`${opts.serverUrl}/api${path}`, init);
     const body = res.status === 204 ? null : await res.json().catch(() => null);
-    if (!res.ok) throw new Error(`${res.status} ${(body as { error?: string } | null)?.error ?? ''}`.trim());
+    if (!res.ok) {
+      const b = body as { error?: string; code?: string } | null;
+      throw Object.assign(new Error(`${res.status} ${b?.error ?? ''}`.trim()), { status: res.status, code: b?.code });
+    }
     return body;
   };
+  /** HTTP status and server error code of a failed api() call (undefined for network errors). */
+  const apiError = (e: unknown) => e as Error & { status?: number; code?: string };
   const needToken = () => (opts.agentToken ? null : fail(`No agent token. Sign in at ${opts.webUrl}/seller/agent, create a plugin token, and set it in the plugin config (agent_token).`));
   const me = async () => (await api('/agents/me', { headers: agentHeaders() })) as
     { address: string; transcriptPublicKey?: string | null; personhood?: unknown; calibratedUntil?: number | null };
@@ -105,47 +110,75 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     const verdict = evaluatePolicy(s.policy ?? DEFAULT_POLICY, c, s.answeredToday + held);
     return verdict.ok && s.matchAudience ? matchesAudience(s.profile ?? {}, c.audience ?? {}) : verdict;
   };
-  /** Answers held for the owner's web approval: send the approved ones, record the rejected ones as abstains, drop the expired. */
-  const flushApprovals = async () => {
-    const s = store.load();
-    const pending = s.pending ?? {};
-    const result = { submitted: [] as string[], rejected: [] as string[], waiting: [] as string[], expired: [] as string[],
-      failed: [] as { campaignId: string; error: string }[] };
+  /** Envelope refusals after approval that will never succeed: the held answer is dropped and the campaign marked decided. */
+  const FINAL_SUBMIT_CODES = new Set(['LATE', 'NOT_ACTIVE', 'ABSTAINED', 'DUPLICATE_HUMAN', 'REJECTED_BY_OWNER']);
+  /** Re-queue refusals that will never succeed (the copy can no longer be queued for this campaign). */
+  const FINAL_QUEUE_CODES = new Set(['LATE', 'NOT_ACTIVE', 'ABSTAINED', 'NOT_YOUR_ANSWER']);
+  type FlushResult = { submitted: string[]; rejected: string[]; waiting: string[]; expired: string[]; failed: { campaignId: string; error: string }[] };
+  /**
+   * Answers held for the owner's web approval: send the approved ones, record the rejected ones as abstains, drop the expired.
+   * Idempotent: an envelope the server already has (DUPLICATE) counts as sent; a held answer the server has no request for
+   * is queued again. Only this flush's own changes are written back (store.update), so concurrent tool calls are kept.
+   */
+  const runFlush = async (): Promise<FlushResult> => {
+    const pending = store.load().pending ?? {};
+    const result: FlushResult = { submitted: [], rejected: [], waiting: [], expired: [], failed: [] };
     const ids = Object.keys(pending);
     if (!ids.length) return result;
     const { approvals } = (await api('/agents/approvals', { headers: agentHeaders() })) as { approvals: { campaignId: string; state: string }[] };
-    const left = { ...pending };
-    let next: LocalState = s;
+    const done: string[] = []; // removed from pending
+    const decided: string[] = [];
+    const abstained: string[] = [];
+    let answered = 0;
+    const sent = async (id: string, copy: unknown) => {
+      await api(`/agents/campaigns/${id}/answer-copy`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) }).catch(() => {});
+      done.push(id); decided.push(id); answered += 1; result.submitted.push(id);
+    };
     for (const id of ids) {
       const p = pending[id]!;
-      const state = approvals.find((a) => a.campaignId === id)?.state ?? 'pending';
-      if (Date.now() > p.deadlineMs) { delete left[id]; result.expired.push(id); continue; }
+      const state = approvals.find((a) => a.campaignId === id)?.state;
+      if (Date.now() > p.deadlineMs) { done.push(id); result.expired.push(id); continue; }
+      if (state === undefined) {
+        // Held here but the server never got (or lost) the request: queue the stored owner copy again.
+        try {
+          await api(`/agents/campaigns/${id}/approval`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(p.copy) });
+          result.waiting.push(id);
+        } catch (e) {
+          const { code, message } = apiError(e);
+          if (code === 'ANSWERED') await sent(id, p.copy); // the envelope already reached the server
+          else if (code && FINAL_QUEUE_CODES.has(code)) { done.push(id); decided.push(id); result.failed.push({ campaignId: id, error: message }); }
+          else result.waiting.push(id);
+        }
+        continue;
+      }
       if (state === 'pending') { result.waiting.push(id); continue; }
       if (state === 'approved') {
         try {
           await api(`/agents/campaigns/${id}/envelope`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(p.envelope) });
         } catch (e) {
-          const error = (e as Error).message;
-          // 409 (already answered, campaign closed, ...) is final; anything else (network, 5xx) is retried on the next flush.
-          if (error.startsWith('409')) { delete left[id]; next = { ...next, decided: [...next.decided, id] }; result.failed.push({ campaignId: id, error }); }
-          else result.waiting.push(id);
+          const { code, message } = apiError(e);
+          if (code === 'DUPLICATE') { await sent(id, p.copy); continue; } // an earlier flush sent it but did not record it
+          if (code && FINAL_SUBMIT_CODES.has(code)) { done.push(id); decided.push(id); result.failed.push({ campaignId: id, error: message }); }
+          else result.waiting.push(id); // AGENT_PAUSED, network, 5xx: retried on the next flush
           continue;
         }
-        await api(`/agents/campaigns/${id}/answer-copy`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(p.copy) }).catch(() => {});
-        delete left[id];
-        next = { ...next, answeredToday: next.answeredToday + 1, decided: [...next.decided, id] };
-        result.submitted.push(id);
+        await sent(id, p.copy);
       } else {
         // A rejection is final: recorded as an abstain and never answered from this machine afterwards.
         await api(`/agents/campaigns/${id}/decision`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify({ kind: 'abstain', reason: 'owner declined' }) }).catch(() => {});
-        delete left[id];
-        next = { ...next, decided: [...next.decided, id], abstained: [...(next.abstained ?? []), id] };
+        done.push(id); decided.push(id); abstained.push(id);
         result.rejected.push(id);
       }
     }
-    store.save({ ...next, pending: left });
+    const add = (list: string[], more: string[]) => [...list, ...more.filter((x) => !list.includes(x))];
+    store.update((cur) => ({ ...cur, answeredToday: cur.answeredToday + answered, decided: add(cur.decided, decided),
+      abstained: add(cur.abstained ?? [], abstained),
+      pending: Object.fromEntries(Object.entries(cur.pending ?? {}).filter(([id]) => !done.includes(id))) }));
     return result;
   };
+  /** One flush at a time: list_campaigns and check_approvals running together share it instead of sending twice. */
+  let flushing: Promise<FlushResult> | null = null;
+  const flushApprovals = () => (flushing ??= runFlush().finally(() => { flushing = null; }));
   const findCampaign = async (id: string) => {
     const { campaigns } = (await api('/agents/campaigns', { headers: agentHeaders() })) as { campaigns: AgentCampaign[] };
     const c = campaigns.find((x) => x.campaignId === id);
@@ -239,12 +272,12 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     const missing = needToken(); if (missing) return missing;
     const c = await findCampaign(campaignId);
     const s = store.load();
-    if (s.pending?.[campaignId]) return text({ decision: 'awaiting_owner_approval', note: `Already answered; held until the owner approves it at ${opts.webUrl}/seller/activity#approvals.` });
+    if (s.pending?.[campaignId]) return text({ decision: 'awaiting_owner_approval', note: `Answered; held for your owner's approval at ${opts.webUrl}/seller/activity#approvals.` });
     const gate = await tierGate(c);
     const verdict = gate.ok ? ownerVerdict(s, c) : gate;
     if (!verdict.ok && !s.decided.includes(campaignId)) {
       await api(`/agents/campaigns/${campaignId}/decision`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify({ kind: 'abstain', reason: verdict.reason }) });
-      store.save({ ...s, decided: [...s.decided, campaignId] });
+      store.update((cur) => ({ ...cur, decided: cur.decided.includes(campaignId) ? cur.decided : [...cur.decided, campaignId] }));
     }
     if (!verdict.ok) return text({ decision: 'abstained', reason: verdict.reason });
     // Chosen from the platform's category labels alone, before the model reads any campaign text (AirGapAgent).
@@ -265,7 +298,7 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     const s = store.load();
     if (s.decided.includes(campaignId)) return fail('already decided for this campaign: this agent already answered it or abstained (by policy or explicitly)');
     await api(`/agents/campaigns/${campaignId}/decision`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify({ kind: 'abstain', reason: ABSTAIN_REASONS[reason] }) });
-    store.save({ ...s, decided: [...s.decided, campaignId], abstained: [...(s.abstained ?? []), campaignId] });
+    store.update((cur) => ({ ...cur, decided: [...cur.decided, campaignId], abstained: [...(cur.abstained ?? []), campaignId] }));
     return text({ abstained: true, reason: ABSTAIN_REASONS[reason] });
   });
 
@@ -313,15 +346,27 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       // Only the owner's copy (transcript key) goes to the queue; the platform-key envelope stays on this machine until approval.
       if (!copy) return fail('Owner approval is on (approve_all), but the owner has not unlocked "My answers" on the web, so the queue cannot show them this answer. '
         + `Ask them to open ${opts.webUrl}/seller/activity?tab=answers once, then try again.`);
-      await api(`/agents/campaigns/${campaignId}/approval`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) });
-      store.save({ ...s, pending: { ...(s.pending ?? {}), [campaignId]: { envelope, copy, deadlineMs: c.deadlineMs } } });
+      // Held locally first: if the request reaches the server but this process dies before recording it, the owner could
+      // approve an answer this machine no longer has. A refusal (4xx) rolls the hold back; anything else is re-sent by the flush.
+      store.update((cur) => ({ ...cur, pending: { ...(cur.pending ?? {}), [campaignId]: { envelope, copy, deadlineMs: c.deadlineMs } } }));
+      try {
+        await api(`/agents/campaigns/${campaignId}/approval`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) });
+      } catch (e) {
+        const { status, message } = apiError(e);
+        if (status === undefined || status >= 500) {
+          return text({ pendingApproval: true, sources: meta.sources, note: 'Sealed and held on this machine, but the approval request did not reach the server; '
+            + 'check_approvals (or list_campaigns) sends it again.' });
+        }
+        store.update((cur) => { const { [campaignId]: _, ...rest } = cur.pending ?? {}; return { ...cur, pending: rest }; });
+        return fail(`Not queued for approval: ${message}`);
+      }
       return text({ pendingApproval: true, sources: meta.sources,
         note: `Sealed and held on this machine until the owner approves it at ${opts.webUrl}/seller/activity#approvals. `
           + 'check_approvals (or list_campaigns) sends it once they do.' });
     }
     await api(`/agents/campaigns/${campaignId}/envelope`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(envelope) });
     if (copy) await api(`/agents/campaigns/${campaignId}/answer-copy`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) }).catch(() => {});
-    store.save({ ...s, answeredToday: s.answeredToday + 1, decided: [...s.decided, campaignId] });
+    store.update((cur) => ({ ...cur, answeredToday: cur.answeredToday + 1, decided: [...cur.decided, campaignId] }));
     return text({ submitted: true, sources: meta.sources, note: 'Encrypted locally; only the aggregate is ever released. Reward is paid to your wallet at settlement.', ...(await calibrationWaiting()) });
   });
 

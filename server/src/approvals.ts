@@ -16,7 +16,7 @@ export function approvalRoutes(deps: Deps): Router {
   };
 
   // ---- agent ----
-  /** Ask the owner to approve an answer. Same checks as submitting it; the first request wins. */
+  /** Ask the owner to approve an answer. Same checks as submitting it; the first request wins (the same copy again is a no-op). */
   r.post('/agents/campaigns/:id/approval', requireAgent(deps), async (req: AuthedRequest, res) => {
     const agent = req.agent!;
     const copy = envelopeSchema.parse(req.body);
@@ -27,9 +27,15 @@ export function approvalRoutes(deps: Deps): Router {
     await refuseIfAbstained(deps, agent, id);
     const [answered] = await deps.db.query(`select 1 from envelopes where campaign_id = $1 and respondent_address = $2`, [id, agent.address]);
     if (answered) throw new HttpError(409, 'ANSWERED', 'already answered this campaign');
-    await deps.db.query(
-      `insert into answer_approvals (campaign_id, agent_id, envelope, state, requested_at_ms) values ($1, $2, $3::jsonb, 'pending', $4) on conflict do nothing`,
+    const inserted = await deps.db.query(
+      `insert into answer_approvals (campaign_id, agent_id, envelope, state, requested_at_ms) values ($1, $2, $3::jsonb, 'pending', $4)
+        on conflict do nothing returning campaign_id`,
       [id, agent.id, JSON.stringify(copy), deps.now()]);
+    if (!inserted.length) {
+      // Re-sending the same copy is a no-op (the plugin retries); a different answer never replaces the one the owner sees.
+      const [same] = await deps.db.query(`select 1 from answer_approvals where campaign_id = $1 and agent_id = $2 and envelope = $3::jsonb`, [id, agent.id, JSON.stringify(copy)]);
+      if (!same) throw new HttpError(409, 'APPROVAL_EXISTS', 'a different answer to this campaign is already waiting for the owner');
+    }
     res.status(204).end();
   });
   r.get('/agents/approvals', requireAgent(deps), async (req: AuthedRequest, res) => {
