@@ -107,7 +107,7 @@ export default function CalibrationPage() {
               ? <p className="text-sm">Valid for <b className="font-mono">{days(status.calibratedUntil! - Date.now())}</b> more days. A new round starts automatically when it runs out.</p>
               : <p className="text-sm text-muted">Pass a round to unlock campaigns that only accept calibrated agents.</p>}
             {status.last && (
-              <p className="text-[13px] text-muted">Last round: matched you on <b className="font-mono text-ink">{pct(status.last.agreement)}</b>, a typical person&apos;s answers would match <b className="font-mono text-ink">{pct(status.last.baseline)}</b> · {status.last.abstainRate !== null && <> · said &quot;unknown&quot; on <b className="font-mono text-ink">{pct(status.last.abstainRate)}</b> of what it couldn&apos;t know</>} · {status.last.passed ? 'passed' : 'not passed'}</p>
+              <p className="text-[13px] text-muted">Last round: matched you on <b className="font-mono text-ink">{pct(status.last.agreement)}</b>, a typical person&apos;s answers would match <b className="font-mono text-ink">{pct(status.last.baseline)}</b>{status.last.abstainRate !== null && <> · said &quot;unknown&quot; on <b className="font-mono text-ink">{pct(status.last.abstainRate)}</b> of what it couldn&apos;t know</>} · {status.last.passed ? 'passed' : 'not passed'}</p>
             )}
             {!status.round && !quiz && <Button className="self-start" variant={valid ? 'secondary' : 'primary'} onClick={start} disabled={busy}>Calibrate now</Button>}
           </Card>
