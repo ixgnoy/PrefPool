@@ -1,4 +1,5 @@
 // cre-runner/src/main.ts
+import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { creCliRunner, pollOnce } from './runner.js';
 
@@ -10,6 +11,9 @@ const run = creCliRunner({
   target: process.env.CRE_TARGET ?? 'staging-settings',
   broadcast: process.env.CRE_BROADCAST === 'true',
 });
+// Keep the `cre login` session renewing while idle (its access token lasts 15 min; the CLI refreshes on use).
+// ponytail: 30-min ping, no alerting; if the session dies the runner logs the CLI's auth error on every job.
+setInterval(() => execFile('cre', ['whoami'], (e) => e && console.error('cre whoami failed (run `cre login`):', e.message)), 30 * 60_000);
 console.log(`cre-runner polling ${serverUrl} (broadcast=${process.env.CRE_BROADCAST === 'true'})`);
 for (;;) {
   try {

@@ -1,0 +1,27 @@
+# systemd unit for the CRE runner on an always-on VM (Ubuntu/Debian). Outbound connections only, no open ports.
+# Setup on the VM, once:
+#   1. Install Node 22, Bun and the CRE CLI (curl -sSL https://app.chain.link/install.sh | bash), clone the repo, npm ci,
+#      (cd cre/aggregate && bun install).
+#   2. Copy from your laptop: cre/.env, cre/secrets.yaml and ~/.cre/cre.yaml (the `cre login` session; chmod 600).
+#      Then run `cre login` again on the laptop so the two machines don't share one refresh token.
+#   3. Create /etc/prefpool-runner.env with SERVER_URL=https://<api>.up.railway.app, CRE_RUNNER_TOKEN=<same as Railway>,
+#      CRE_TARGET=production-settings (chmod 600).
+#   4. sudo cp scripts/deploy/cre-runner.service /etc/systemd/system/ && sudo systemctl enable --now cre-runner
+#      Logs: journalctl -u cre-runner -f
+# Adjust User and WorkingDirectory to your VM.
+[Unit]
+Description=PrefPool CRE runner (cre workflow simulate)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/PrefPool
+EnvironmentFile=/etc/prefpool-runner.env
+Environment=PATH=/home/ubuntu/.cre/bin:/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/npm start -w @as/cre-runner
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

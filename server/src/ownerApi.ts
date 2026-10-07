@@ -167,7 +167,7 @@ export function ownerRoutes(deps: Deps): Router {
     const cats = new Map<string, { category: string; campaigns: number; acceptedAnswers: number; paid: bigint; locked: bigint }>();
     const byDay = new Map<number, bigint>();
     const rejections = { malformed: 0, duplicate: 0, ineligible: 0, late: 0 };
-    let locked = 0n, paid = 0n, refunded = 0n, accepted = 0, funded = 0;
+    let locked = 0n, inEscrow = 0n, paid = 0n, refunded = 0n, accepted = 0, funded = 0;
     for (const c of rows) {
       byState[c.state] = (byState[c.state] ?? 0) + 1;
       const cat = cats.get(c.spec.category) ?? { category: c.spec.category, campaigns: 0, acceptedAnswers: 0, paid: 0n, locked: 0n };
@@ -177,6 +177,7 @@ export function ownerRoutes(deps: Deps): Router {
       funded++;
       const budget = BigInt(c.spec.rewardLamports) * BigInt(c.spec.maxResponses);
       locked += budget; cat.locked += budget;
+      if (c.state !== 'SETTLED' && c.state !== 'REFUNDED') inEscrow += budget; // settle/refund closes the escrow
       if (c.state === 'SETTLED' && c.settlement) {
         const p = BigInt(c.settlement.payoutTotalLamports ?? 0);
         paid += p; cat.paid += p; refunded += BigInt(c.settlement.refundLamports ?? 0);
@@ -193,7 +194,7 @@ export function ownerRoutes(deps: Deps): Router {
     for (const d of decisions) if (d.kind === 'abstain') declines[bucket(d.reason)] = (declines[bucket(d.reason)] ?? 0) + Number(d.n);
     res.json({
       campaigns: rows.length, funded, byState,
-      budgetLockedLamports: locked.toString(), paidOutLamports: paid.toString(), refundedLamports: refunded.toString(),
+      budgetLockedLamports: locked.toString(), inEscrowLamports: inEscrow.toString(), paidOutLamports: paid.toString(), refundedLamports: refunded.toString(),
       acceptedAnswers: accepted, costPerAnswerLamports: accepted ? (paid / BigInt(accepted)).toString() : null,
       answered: decisions.filter((d) => d.kind === 'answer').reduce((n, d) => n + Number(d.n), 0),
       abstained: decisions.filter((d) => d.kind === 'abstain').reduce((n, d) => n + Number(d.n), 0),

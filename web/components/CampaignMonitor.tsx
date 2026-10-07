@@ -17,7 +17,7 @@ import { ApiError, getCampaign, getConfig, getResults, type CampaignView } from 
 import { refundDirect } from '@/lib/fund';
 import { layoutFish, type Phase } from '@/lib/aquarium';
 import { LAMPORTS, STATE_UI, TIMELINE, fmtSol, fmtTime, short, sol, type CampaignState } from '@/lib/campaign';
-import { DEFAULT_PLATFORM_FEE_USDC, DEMO_NOTE } from '@/lib/config';
+import { DEMO_NOTE } from '@/lib/config';
 import { campaignEscrowAddress, type ResearchReport } from '@as/shared';
 
 const CRE_STEPS = ['Read escrow from Solana', 'Decrypt (inside CRE)', 'Validate', 'Remove duplicates', 'Cohort check (≥ k)', 'Aggregate', 'Sign payee list'];
@@ -65,8 +65,7 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
   const [programId, setProgramId] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [viewStep, setViewStep] = useState<number | null>(null); // null = live; else replay that timeline step
-  const [feeUsdc, setFeeUsdc] = useState(DEFAULT_PLATFORM_FEE_USDC);
-  useEffect(() => { getConfig().then((cfg) => { setProgramId(cfg.programId); setFeeUsdc(cfg.platformFeeUsdc ?? DEFAULT_PLATFORM_FEE_USDC); }).catch(() => {}); }, []);
+  useEffect(() => { getConfig().then((cfg) => { setProgramId(cfg.programId); }).catch(() => {}); }, []);
 
   if (c === undefined) return <div className="h-96 animate-pulse rounded-2xl bg-surface" />;
   if (c === null) return <EmptyState pose="researcher" text="We couldn't find this campaign." action={<Button href={owner ? '/research' : '/'}>Go back</Button>} />;
@@ -174,7 +173,7 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
         </Card>
       )}
 
-      {(formed || settled) && (owner && settled ? <Results c={c} abstained={abstainedTotal} feeUsdc={feeUsdc} /> : (
+      {(formed || settled) && (owner && settled ? <Results c={c} abstained={abstainedTotal} /> : (
         <p className="text-sm text-muted">{settled ? 'Aggregated results go to the campaign owner only.' : 'Results unlock once payouts settle.'} Individual answers are never shown to anyone.</p>
       ))}
 
@@ -233,7 +232,7 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
   );
 }
 
-function Results({ c, abstained, feeUsdc }: { c: CampaignView; abstained: number; feeUsdc: number }) {
+function Results({ c, abstained }: { c: CampaignView; abstained: number }) {
   const { session, accessTokens } = useStore();
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -292,7 +291,6 @@ function Results({ c, abstained, feeUsdc }: { c: CampaignView; abstained: number
       <p className="border-t border-line pt-3 text-[13px] text-muted">
         {chips.filter(([, n]) => n > 0).map(([l, n], i) => <span key={l}>{i > 0 && ', '}{l.toLowerCase()} <span className="font-mono text-ink">{n}</span></span>)}.
       </p>
-      <p className="text-[13px] text-muted">Your results are free here. {feeUsdc ? <>A research agent fetching this report with the access token pays a <b className="font-mono text-ink">{feeUsdc} USDC</b> platform fee over <Term k="x402" /> (Devnet USDC).</> : 'A research agent can fetch the same report with the access token, free.'}</p>
     </Card>
   );
 }

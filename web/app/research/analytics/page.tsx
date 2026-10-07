@@ -47,7 +47,7 @@ export default function BuyerAnalyticsPage() {
           <p className="text-sm text-muted">
             for <span className="font-mono text-ink">{a.acceptedAnswers}</span> valid answers
             {a.costPerAnswerLamports && <>, <span className="font-mono text-ink">{amt(a.costPerAnswerLamports)}</span> SOL each</>}
-            {' · '}<span className="font-mono text-ink">{amt(a.budgetLockedLamports)}</span> SOL still in escrow
+            {' · '}<span className="font-mono text-ink">{amt(a.inEscrowLamports)}</span> SOL still in escrow
             {' · '}<span className="font-mono text-ink">{amt(a.refundedLamports)}</span> SOL refunded to you
           </p>
           {notPaid.length > 0 && (

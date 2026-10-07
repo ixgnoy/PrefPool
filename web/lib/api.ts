@@ -92,7 +92,7 @@ export const setTranscriptPublicKey = (token: string, publicKey: string) =>
 // ---- buyer analytics -----------------------------------------------------------------------------------------
 export interface BuyerAnalytics {
   campaigns: number; funded: number; byState: Record<string, number>;
-  budgetLockedLamports: string; paidOutLamports: string; refundedLamports: string; acceptedAnswers: number; costPerAnswerLamports: string | null;
+  budgetLockedLamports: string; inEscrowLamports: string; paidOutLamports: string; refundedLamports: string; acceptedAnswers: number; costPerAnswerLamports: string | null;
   answered: number; abstained: number; rejections: Record<'malformed' | 'duplicate' | 'ineligible' | 'late', number>;
   declines: Partial<Record<AbstainBucket, number>>; topDeclineReasons: { reason: string; count: number }[];
   byCategory: { category: string; campaigns: number; acceptedAnswers: number; paidLamports: string; lockedLamports: string }[];
