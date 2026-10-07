@@ -1,6 +1,6 @@
 // createCampaign: 201 carries the screening wording warnings; 422 carries the rejection reasons.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, createCampaign } from '../lib/api';
+import { ApiError, createCampaign, createCampaignError } from '../lib/api';
 import type { CampaignSpec } from '@as/shared';
 
 const spec = { title: 't', category: 'payments', questions: [], audience: {}, rewardLamports: '1500000', maxResponses: 20, minCohort: 15, deadlineMs: 0 } as CampaignSpec;
@@ -25,5 +25,11 @@ describe('createCampaign', () => {
     const e = await createCampaign(spec, 's').catch((x: unknown) => x);
     expect(e).toBeInstanceOf(ApiError);
     expect(e).toMatchObject({ status: 429, code: 'TOO_MANY_REJECTED', message: error });
+  });
+  it('the page shows the throttle as its own state, other errors as a rejection', () => {
+    const msg = '10 rejected drafts in 24 hours; fix the questions and try again tomorrow';
+    expect(createCampaignError(new ApiError(429, 'TOO_MANY_REJECTED', msg))).toEqual({ throttled: true, message: msg });
+    expect(createCampaignError(new ApiError(500, 'INTERNAL', 'internal error'))).toEqual({ throttled: false, message: 'internal error' });
+    expect(createCampaignError(new Error('offline'))).toEqual({ throttled: false, message: 'offline' });
   });
 });

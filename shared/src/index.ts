@@ -6,6 +6,7 @@ export * from './escrowAccount';
 export * from './address';
 export * from './report';
 export * from './policy';
+export * from './abstain';
 export * from './audience';
 export * from './transcript';
 export * from './answers';

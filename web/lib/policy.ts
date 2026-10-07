@@ -1,6 +1,6 @@
 // web/lib/policy.ts — UI vocabulary for guardrails. The decision itself is `evaluatePolicy` from @as/shared, the same
 // code the agents and the plugin run, so the "Try it" preview can never disagree with a real agent.
-import { SENSITIVE_CATEGORIES, evaluatePolicy as sharedEvaluate, type CampaignSpec, type OwnerPolicy } from '@as/shared';
+import { ABSTAIN_REASONS, SENSITIVE_CATEGORIES, evaluatePolicy as sharedEvaluate, type CampaignSpec, type OwnerPolicy } from '@as/shared';
 import type { AbstainBucket } from './api';
 
 export type { OwnerPolicy };
@@ -82,8 +82,8 @@ export const bucketOf = (reason: string | null): AbstainReason =>
       : reason?.startsWith('reward') ? 'reward_below_minimum'
         : reason?.startsWith('daily limit') ? 'daily_limit' : reason?.startsWith('no matching profile') ? 'no_matching_profile'
           : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated'
-            : reason === 'task request' ? 'task_request' : reason === 'asks for secrets' ? 'credential_ask'
-              : reason === 'does not know the answer' ? 'unknown_answer' : 'other';
+            : reason === ABSTAIN_REASONS.task_request ? 'task_request' : reason === ABSTAIN_REASONS.credential_ask ? 'credential_ask'
+              : reason === ABSTAIN_REASONS.unknown_answer ? 'unknown_answer' : 'other';
 
 export type PreviewCampaign = Pick<CampaignSpec, 'category' | 'questions' | 'rewardLamports'>;
 export type Decision = { kind: 'answer' } | { kind: 'abstain'; reason: AbstainReason; text: string };

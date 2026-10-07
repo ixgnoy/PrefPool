@@ -8,7 +8,7 @@ import { Term } from '@/components/Term';
 import { DevSpec } from '@/components/DevTrace';
 import { Button, Card, ChoiceChip, CopyButton, Mono, Progress, Toggle, cx, useNow } from '@/components/ui';
 import { useStore } from '@/lib/store';
-import { createCampaign, getCampaign } from '@/lib/api';
+import { createCampaign, createCampaignError, getCampaign } from '@/lib/api';
 import { CATEGORIES, SENSITIVE, categoryLabel } from '@/lib/policy';
 import { AGES, COUNTRIES, COUNTRY_CODES, OCCUPATIONS, ageValue } from '@/lib/audience';
 import { LAMPORTS, REFUND_DELAY_MS, fmtSol, fmtTime, sol } from '@/lib/campaign';
@@ -60,7 +60,7 @@ export default function NewCampaign() {
   const now = useNow(30_000);
   const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(DEFAULT);
-  const [screening, setScreening] = useState<'idle' | 'running' | 'rejected'>('idle');
+  const [screening, setScreening] = useState<'idle' | 'running' | 'rejected' | 'throttled'>('idle');
   const [reasons, setReasons] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [created, setCreated] = useState<{ id: string; accessToken: string; deadlineMs: number } | null>(null);
@@ -138,7 +138,8 @@ export default function NewCampaign() {
       rememberAccessToken(r.campaignId, r.accessToken);
       setCreated({ id: r.campaignId, accessToken: r.accessToken, deadlineMs: dl });
     } catch (e) {
-      setReasons([(e as Error).message]); setScreening('rejected');
+      const { throttled, message } = createCampaignError(e);
+      setReasons([message]); setScreening(throttled ? 'throttled' : 'rejected');
     }
   }
 
@@ -288,7 +289,7 @@ export default function NewCampaign() {
                 <dt className="text-muted">Questions</dt><dd>{d.questions.length} ({d.questions.filter((q) => q.category).map((q) => `${q.id}: ${categoryLabel(q.category!)}`).join(', ') || 'no overrides'})</dd>
                 <dt className="text-muted">Budget</dt><dd><span className="font-mono">{fmtSol(d.rewardSol)}</span> SOL per answer, up to <span className="font-mono">{d.maxResponses}</span> answers, groups of <span className="font-mono">{d.minCohort}</span>+</dd>
               </dl>
-              {[d.category, ...d.questions.map((q) => q.category)].some((c) => c && SENSITIVE.has(c)) && screening !== 'rejected' && (
+              {[d.category, ...d.questions.map((q) => q.category)].some((c) => c && SENSITIVE.has(c)) && screening !== 'rejected' && screening !== 'throttled' && (
                 <p className="text-[13px] font-bold text-warn-ink">This campaign touches a sensitive category. Screening will reject it.</p>
               )}
               {!session && (
@@ -301,6 +302,16 @@ export default function NewCampaign() {
                     <span className="text-lg font-bold text-danger-ink">Screening said no</span>
                     <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
                     <span className="text-[13px] font-bold">Nothing was paid.</span>
+                  </div>
+                </div>
+              )}
+              {screening === 'throttled' && (
+                <div role="alert" className="rise flex flex-wrap items-center gap-4 rounded-2xl border-[1.5px] border-danger bg-danger-soft p-5">
+                  <Fin pose="policy" label="Fin firm: too many rejected drafts" />
+                  <div className="flex flex-1 flex-col gap-2">
+                    <span className="text-lg font-bold text-danger-ink">Too many rejected drafts</span>
+                    <p className="text-sm">{reasons[0]}</p>
+                    <span className="text-[13px] font-bold">Nothing was paid. Fix the questions now; you can submit again once the 24-hour window clears.</span>
                   </div>
                 </div>
               )}
@@ -336,11 +347,11 @@ export default function NewCampaign() {
 
           {!created && (
             <div className="sticky bottom-0 -mx-5 flex items-center gap-2 border-t border-line bg-surface px-5 py-3 sm:static sm:mx-0 sm:px-0 sm:pb-0">
-              {step > 0 && <Button variant="secondary" onClick={() => { setScreening('idle'); go(step - 1); }}>{screening === 'rejected' ? 'Edit campaign' : 'Back'}</Button>}
+              {step > 0 && <Button variant="secondary" onClick={() => { setScreening('idle'); go(step - 1); }}>{screening === 'rejected' || screening === 'throttled' ? 'Edit campaign' : 'Back'}</Button>}
               <div className="ml-auto">
                 {step < 4
                   ? <Button onClick={() => go(step + 1)} disabled={!canNext}>Continue</Button>
-                  : <Button onClick={submit} disabled={screening === 'running' || !session}>{screening === 'running' ? 'Checking…' : screening === 'rejected' ? 'Check again' : 'Check & fund'}</Button>}
+                  : <Button onClick={submit} disabled={screening === 'running' || screening === 'throttled' || !session}>{screening === 'running' ? 'Checking…' : screening === 'throttled' ? 'Try again tomorrow' : screening === 'rejected' ? 'Check again' : 'Check & fund'}</Button>}
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@
 // the seller's agent (status, guardrails, pause, activity), the buyer's campaign list and refund escape hatch,
 // and the dev-view trace. Wallet-session auth; nothing here ever returns answers, tokens or private keys.
 import { Router, type Request } from 'express';
-import type { SettlementReport } from '@as/shared';
+import { ABSTAIN_REASONS, type SettlementReport } from '@as/shared';
 import { z } from 'zod';
 import { requireSession, type AuthedRequest } from './auth.js';
 import { campaignView, getCampaign } from './campaigns.js';
@@ -35,8 +35,8 @@ const bucket = (reason: string | null): AbstainBucket =>
       : reason?.startsWith('reward') ? 'reward_below_minimum'
         : reason?.startsWith('daily limit') ? 'daily_limit' : reason?.startsWith('no matching profile') ? 'no_matching_profile'
           : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated'
-            : reason === 'task request' ? 'task_request' : reason === 'asks for secrets' ? 'credential_ask'
-              : reason === 'does not know the answer' ? 'unknown_answer' : 'other';
+            : reason === ABSTAIN_REASONS.task_request ? 'task_request' : reason === ABSTAIN_REASONS.credential_ask ? 'credential_ask'
+              : reason === ABSTAIN_REASONS.unknown_answer ? 'unknown_answer' : 'other';
 
 interface AgentRow {
   id: string; kind: string; address: string; policy: unknown; paused: boolean; last_seen_at: Date | string | null;

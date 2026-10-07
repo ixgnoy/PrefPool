@@ -1,5 +1,5 @@
 // server/src/agentService.ts
-import { calibrationGate, isSolanaAddress, type Envelope } from '@as/shared';
+import { EXPLICIT_ABSTAIN_REASONS, calibrationGate, isSolanaAddress, type Envelope } from '@as/shared';
 import { z } from 'zod';
 import { getCampaign } from './campaigns.js';
 import { isUniqueViolation } from './db.js';
@@ -61,6 +61,10 @@ export async function acceptEnvelope(deps: Deps, agent: AgentRef, raw: unknown):
   if (env.respondentAddress !== agent.address) throw new HttpError(403, 'NOT_YOUR_ADDRESS', 'respondentAddress must be your registered address');
   await onDuty(deps, agent);
   const c = await activeCampaign(deps, env.campaignId);
+  // An explicit abstain (abstain_campaign) is final; policy and tier abstains stay recoverable.
+  const [abstained] = await deps.db.query(`select 1 from agent_decisions where campaign_id = $1 and agent_id = $2 and kind = 'abstain' and reason = any($3::text[])`,
+    [env.campaignId, agent.id, EXPLICIT_ABSTAIN_REASONS]);
+  if (abstained) throw new HttpError(409, 'ABSTAINED', 'this agent abstained from this campaign and cannot answer it');
   const [me] = await deps.db.query<{ personhood_nullifier: string | null; calibrated_ms: string | number | null }>(
     `select personhood_nullifier, extract(epoch from calibrated_until) * 1000 as calibrated_ms from agents where id = $1`, [agent.id]);
   const nullifier = me?.personhood_nullifier ?? null;

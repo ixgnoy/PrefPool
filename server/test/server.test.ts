@@ -213,6 +213,18 @@ describe('agents', () => {
     expect(view.abstained).toEqual([{ reason: 'blocked category: spending', count: 1 }]);
     expect(JSON.stringify(view)).not.toMatch(/"ct"|"epk"|answers/);
   });
+  it('refuses an answer after an explicit abstain, but not after a policy abstain', async () => {
+    const { app, id } = await activeCampaign();
+    const explicit = await registerAgent(app);
+    await request(app).post(`/api/agents/campaigns/${id}/decision`).set(explicit.agentAuth).send({ kind: 'abstain', reason: 'task request' }).expect(204);
+    const refused = await request(app).post(`/api/agents/campaigns/${id}/envelope`).set(explicit.agentAuth)
+      .send(sealEnvelope(keys.encPk, id, explicit.address, { q1: 1, q2: 4, q3: 0 })).expect(409);
+    expect(refused.body.code).toBe('ABSTAINED');
+    const policy = await registerAgent(app); // e.g. abstained as unverified, then the owner verified
+    await request(app).post(`/api/agents/campaigns/${id}/decision`).set(policy.agentAuth).send({ kind: 'abstain', reason: 'category not allowed: spending' }).expect(204);
+    await request(app).post(`/api/agents/campaigns/${id}/envelope`).set(policy.agentAuth)
+      .send(sealEnvelope(keys.encPk, id, policy.address, { q1: 1, q2: 4, q3: 0 })).expect(204);
+  });
 });
 
 describe('CRE endpoints, relayer and settlement', () => {

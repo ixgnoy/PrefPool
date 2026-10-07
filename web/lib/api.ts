@@ -131,6 +131,12 @@ export async function createCampaign(spec: CampaignSpec, token: string): Promise
   }
 }
 
+/** How the new-campaign page shows a createCampaign error: the draft throttle (429) is not a screening result to retry now. */
+export function createCampaignError(e: unknown): { throttled: boolean; message: string } {
+  if (e instanceof ApiError && e.code === 'TOO_MANY_REJECTED') return { throttled: true, message: e.message };
+  return { throttled: false, message: (e as Error)?.message ?? String(e) };
+}
+
 // ---- dev view -------------------------------------------------------------------------------------------------
 /** A Solana transaction as the server reads it from RPC (getTransaction). */
 export interface TxTrace {
