@@ -46,6 +46,14 @@ export async function refuseIfAbstained(deps: Deps, agent: AgentRef, campaignId:
   if (abstained) throw new HttpError(409, 'ABSTAINED', 'this agent abstained from this campaign and cannot answer it');
 }
 
+/** Once an answer went to the owner's approval queue (approve_all), only an approved one may be submitted; a rejection is final. */
+export async function refuseUnlessApproved(deps: Deps, agent: AgentRef, campaignId: string) {
+  const [p] = await deps.db.query<{ state: string }>(`select state from answer_approvals where campaign_id = $1 and agent_id = $2`, [campaignId, agent.id]);
+  if (!p || p.state === 'approved') return;
+  if (p.state === 'rejected') throw new HttpError(409, 'REJECTED_BY_OWNER', 'the owner rejected this answer');
+  throw new HttpError(409, 'AWAITING_APPROVAL', 'this answer is waiting for the owner to approve it');
+}
+
 /** First decision wins; a later answer/abstain for the same campaign is ignored. */
 export async function recordDecision(deps: Deps, agent: AgentRef, campaignId: string, kind: 'answer' | 'abstain', reason?: string) {
   await onDuty(deps, agent);
@@ -73,6 +81,7 @@ export async function acceptEnvelope(deps: Deps, agent: AgentRef, raw: unknown):
   await onDuty(deps, agent);
   const c = await activeCampaign(deps, env.campaignId);
   await refuseIfAbstained(deps, agent, env.campaignId);
+  await refuseUnlessApproved(deps, agent, env.campaignId);
   const [me] = await deps.db.query<{ personhood_nullifier: string | null; calibrated_ms: string | number | null }>(
     `select personhood_nullifier, extract(epoch from calibrated_until) * 1000 as calibrated_ms from agents where id = $1`, [agent.id]);
   const nullifier = me?.personhood_nullifier ?? null;

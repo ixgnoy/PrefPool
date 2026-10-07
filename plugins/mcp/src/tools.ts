@@ -96,10 +96,55 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     const r = (await api('/agents/calibration', { headers: agentHeaders() }).catch(() => ({ round: null }))) as { round: unknown };
     return r.round ? { calibrationWaiting: 'A calibration round about your owner is waiting: call calibration_pending and answer it.' } : {};
   };
-  /** Owner policy first, then (opt-in) the audience check: same order and reason strings as the web agent. */
+  /**
+   * Owner policy first, then (opt-in) the audience check: same order and reason strings as the web agent.
+   * Answers held for web approval (other campaigns) count toward the daily limit, so approve_all cannot queue past it.
+   */
   const ownerVerdict = (s: LocalState, c: AgentCampaign) => {
-    const verdict = evaluatePolicy(s.policy ?? DEFAULT_POLICY, c, s.answeredToday);
+    const held = Object.entries(s.pending ?? {}).filter(([id, p]) => id !== c.campaignId && p.deadlineMs > Date.now()).length;
+    const verdict = evaluatePolicy(s.policy ?? DEFAULT_POLICY, c, s.answeredToday + held);
     return verdict.ok && s.matchAudience ? matchesAudience(s.profile ?? {}, c.audience ?? {}) : verdict;
+  };
+  /** Answers held for the owner's web approval: send the approved ones, record the rejected ones as abstains, drop the expired. */
+  const flushApprovals = async () => {
+    const s = store.load();
+    const pending = s.pending ?? {};
+    const result = { submitted: [] as string[], rejected: [] as string[], waiting: [] as string[], expired: [] as string[],
+      failed: [] as { campaignId: string; error: string }[] };
+    const ids = Object.keys(pending);
+    if (!ids.length) return result;
+    const { approvals } = (await api('/agents/approvals', { headers: agentHeaders() })) as { approvals: { campaignId: string; state: string }[] };
+    const left = { ...pending };
+    let next: LocalState = s;
+    for (const id of ids) {
+      const p = pending[id]!;
+      const state = approvals.find((a) => a.campaignId === id)?.state ?? 'pending';
+      if (Date.now() > p.deadlineMs) { delete left[id]; result.expired.push(id); continue; }
+      if (state === 'pending') { result.waiting.push(id); continue; }
+      if (state === 'approved') {
+        try {
+          await api(`/agents/campaigns/${id}/envelope`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(p.envelope) });
+        } catch (e) {
+          const error = (e as Error).message;
+          // 409 (already answered, campaign closed, ...) is final; anything else (network, 5xx) is retried on the next flush.
+          if (error.startsWith('409')) { delete left[id]; next = { ...next, decided: [...next.decided, id] }; result.failed.push({ campaignId: id, error }); }
+          else result.waiting.push(id);
+          continue;
+        }
+        await api(`/agents/campaigns/${id}/answer-copy`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(p.copy) }).catch(() => {});
+        delete left[id];
+        next = { ...next, answeredToday: next.answeredToday + 1, decided: [...next.decided, id] };
+        result.submitted.push(id);
+      } else {
+        // A rejection is final: recorded as an abstain and never answered from this machine afterwards.
+        await api(`/agents/campaigns/${id}/decision`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify({ kind: 'abstain', reason: 'owner declined' }) }).catch(() => {});
+        delete left[id];
+        next = { ...next, decided: [...next.decided, id], abstained: [...(next.abstained ?? []), id] };
+        result.rejected.push(id);
+      }
+    }
+    store.save({ ...next, pending: left });
+    return result;
   };
   const findCampaign = async (id: string) => {
     const { campaigns } = (await api('/agents/campaigns', { headers: agentHeaders() })) as { campaigns: AgentCampaign[] };
@@ -173,9 +218,18 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
 
   server.registerTool('list_campaigns', { description: 'List active research campaigns this agent can answer.' }, async () => {
     const missing = needToken(); if (missing) return missing;
+    await flushApprovals().catch(() => {}); // send answers the owner approved since the last call
     const { campaigns } = (await api('/agents/campaigns', { headers: agentHeaders() })) as { campaigns: AgentCampaign[] };
     const address = await agentAddress();
     return text(campaigns.map((c) => untrusted(c, address)));
+  });
+
+  server.registerTool('check_approvals', {
+    description: 'Send answers the owner approved on the web (policy approve_all), record the ones they rejected as abstains, drop expired ones. '
+      + 'list_campaigns does this too.',
+  }, async () => {
+    const missing = needToken(); if (missing) return missing;
+    return text(await flushApprovals());
   });
 
   server.registerTool('evaluate_campaign', {
@@ -185,6 +239,7 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     const missing = needToken(); if (missing) return missing;
     const c = await findCampaign(campaignId);
     const s = store.load();
+    if (s.pending?.[campaignId]) return text({ decision: 'awaiting_owner_approval', note: `Already answered; held until the owner approves it at ${opts.webUrl}/seller/activity#approvals.` });
     const gate = await tierGate(c);
     const verdict = gate.ok ? ownerVerdict(s, c) : gate;
     if (!verdict.ok && !s.decided.includes(campaignId)) {
@@ -224,7 +279,9 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       sources: z.record(z.string(), z.enum(ANSWER_SOURCES)).optional() },
   }, async ({ campaignId, answers, ownerApproved, sources }) => {
     const missing = needToken(); if (missing) return missing;
-    if ((store.load().abstained ?? []).includes(campaignId)) return fail('already decided for this campaign: you abstained from it');
+    const before = store.load();
+    if ((before.abstained ?? []).includes(campaignId)) return fail('already decided for this campaign: you abstained from it (or the owner rejected your answer)');
+    if (before.pending?.[campaignId]) return fail('already answered: this answer is waiting for the owner\'s approval (check_approvals)');
     const c = await findCampaign(campaignId);
     const s = store.load();
     const gate = await tierGate(c);
@@ -239,9 +296,6 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       return fail('This campaign asks about your owner (spending or personal life) and their policy requires their OK first. '
         + 'Ask the owner; only after they agree, call submit_answer again with ownerApproved: true.');
     }
-    if (need === 'web') { // G10 replaces this with the local hold + web approval queue
-      return fail('Owner approval is on for every answer (approve_all); the web approval queue is not available in this version, so this answer is not sent.');
-    }
     const meRow = await me();
     // Shown positions -> canonical option indexes: only canonical answers are ever sealed (envelope and owner copy).
     const canonical = canonicalAnswers(c.questions, meRow.address, campaignId, answers);
@@ -253,12 +307,20 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       client: { name: 'agent-survey-mcp', version: PLUGIN_VERSION, ...(validModelId ? { modelId: validModelId } : {}) },
     };
     const envelope = sealEnvelope(c.envelopePublicKey, campaignId, meRow.address, canonical, meta);
-    await api(`/agents/campaigns/${campaignId}/envelope`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(envelope) });
     // Encrypt to self: a second copy sealed to the owner's wallet-derived key, so they can read it on the web.
-    if (meRow.transcriptPublicKey) {
-      const copy = sealEnvelope(meRow.transcriptPublicKey, campaignId, meRow.address, canonical, meta);
-      await api(`/agents/campaigns/${campaignId}/answer-copy`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) }).catch(() => {});
+    const copy = meRow.transcriptPublicKey ? sealEnvelope(meRow.transcriptPublicKey, campaignId, meRow.address, canonical, meta) : null;
+    if (need === 'web') {
+      // Only the owner's copy (transcript key) goes to the queue; the platform-key envelope stays on this machine until approval.
+      if (!copy) return fail('Owner approval is on (approve_all), but the owner has not unlocked "My answers" on the web, so the queue cannot show them this answer. '
+        + `Ask them to open ${opts.webUrl}/seller/activity?tab=answers once, then try again.`);
+      await api(`/agents/campaigns/${campaignId}/approval`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) });
+      store.save({ ...s, pending: { ...(s.pending ?? {}), [campaignId]: { envelope, copy, deadlineMs: c.deadlineMs } } });
+      return text({ pendingApproval: true, sources: meta.sources,
+        note: `Sealed and held on this machine until the owner approves it at ${opts.webUrl}/seller/activity#approvals. `
+          + 'check_approvals (or list_campaigns) sends it once they do.' });
     }
+    await api(`/agents/campaigns/${campaignId}/envelope`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(envelope) });
+    if (copy) await api(`/agents/campaigns/${campaignId}/answer-copy`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) }).catch(() => {});
     store.save({ ...s, answeredToday: s.answeredToday + 1, decided: [...s.decided, campaignId] });
     return text({ submitted: true, sources: meta.sources, note: 'Encrypted locally; only the aggregate is ever released. Reward is paid to your wallet at settlement.', ...(await calibrationWaiting()) });
   });

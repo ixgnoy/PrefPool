@@ -23,7 +23,7 @@ async function activeCampaign() {
   const key = transcriptKeyFromSignature('ab'.repeat(64));
   await request(env.app).put('/api/agents/mine/transcript-key').set({ Authorization: `Bearer ${session}` }).send({ publicKey: key.publicKey }).expect(200);
   const copy = sealEnvelope(key.publicKey, body.campaignId, owner.address, { q1: 0, q2: 3, q3: 1 });
-  return { app: env.app, clock: env.clock, deadline, campaignId: body.campaignId as string, owner, key, copy,
+  return { app: env.app, deps: env.deps, clock: env.clock, deadline, campaignId: body.campaignId as string, owner, key, copy,
     web: { Authorization: `Bearer ${session}` }, agent: { Authorization: `Bearer ${reg.body.agentToken as string}` } };
 }
 
@@ -87,6 +87,27 @@ describe('answer approvals', () => {
     const w = await activeCampaign();
     await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/approval`).set(w.agent).send(w.copy).expect(204);
     w.clock.now = w.deadline + 1;
+    expect((await request(w.app).get('/api/agents/mine/approvals').set(w.web).expect(200)).body.pending).toEqual([]);
+    await request(w.app).post(`/api/agents/mine/approvals/${w.campaignId}`).set(w.web).send({ decision: 'approve' }).expect(404);
+  });
+  it('refuses a direct envelope while the approval is pending or after the owner rejected it', async () => {
+    const w = await activeCampaign();
+    const env = sealEnvelope(keys.encPk, w.campaignId, w.owner.address, { q1: 0, q2: 3, q3: 1 });
+    await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/approval`).set(w.agent).send(w.copy).expect(204);
+    expect((await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/envelope`).set(w.agent).send(env).expect(409)).body.code).toBe('AWAITING_APPROVAL');
+    await request(w.app).post(`/api/agents/mine/approvals/${w.campaignId}`).set(w.web).send({ decision: 'reject' }).expect(204);
+    expect((await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/envelope`).set(w.agent).send(env).expect(409)).body.code).toBe('REJECTED_BY_OWNER');
+
+    const ok = await activeCampaign();
+    await request(ok.app).post(`/api/agents/campaigns/${ok.campaignId}/approval`).set(ok.agent).send(ok.copy).expect(204);
+    await request(ok.app).post(`/api/agents/mine/approvals/${ok.campaignId}`).set(ok.web).send({ decision: 'approve' }).expect(204);
+    await request(ok.app).post(`/api/agents/campaigns/${ok.campaignId}/envelope`).set(ok.agent)
+      .send(sealEnvelope(keys.encPk, ok.campaignId, ok.owner.address, { q1: 0, q2: 3, q3: 1 })).expect(204);
+  });
+  it('hides and freezes pending rows once the campaign leaves ACTIVE', async () => {
+    const w = await activeCampaign();
+    await request(w.app).post(`/api/agents/campaigns/${w.campaignId}/approval`).set(w.agent).send(w.copy).expect(204);
+    await w.deps.db.query(`update campaigns set state = 'AGGREGATING' where id = $1`, [w.campaignId]);
     expect((await request(w.app).get('/api/agents/mine/approvals').set(w.web).expect(200)).body.pending).toEqual([]);
     await request(w.app).post(`/api/agents/mine/approvals/${w.campaignId}`).set(w.web).send({ decision: 'approve' }).expect(404);
   });

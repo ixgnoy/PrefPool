@@ -1,6 +1,6 @@
 // plugins/mcp/test/plugin.test.ts
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -58,7 +58,7 @@ describe('agent-survey MCP plugin', () => {
   it('exposes respondent and researcher tools', async () => {
     const { client } = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')) });
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(['abstain_campaign', 'calibration_pending', 'calibration_submit', 'campaign_status', 'draft_campaign', 'evaluate_campaign', 'forget_owner_fact', 'fund_campaign', 'get_policy', 'get_report', 'list_campaigns', 'list_owner_facts', 'remember_owner_fact', 'set_policy', 'submit_answer']);
+    expect(names).toEqual(['abstain_campaign', 'calibration_pending', 'calibration_submit', 'campaign_status', 'check_approvals', 'draft_campaign', 'evaluate_campaign', 'forget_owner_fact', 'fund_campaign', 'get_policy', 'get_report', 'list_campaigns', 'list_owner_facts', 'remember_owner_fact', 'set_policy', 'submit_answer']);
   });
 
   it('wraps every campaign string in per-call untrusted markers', async () => {
@@ -329,14 +329,109 @@ describe('agent-survey MCP plugin', () => {
     expect((await call('get_policy')).json).toMatchObject({ approvalMode: 'approve_sensitive', dailyLimit: 3 });
   });
 
-  it('approve_all fails closed until the web approval queue exists', async () => {
+  const approveAll = { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5, approvalMode: 'approve_all' };
+  const withTranscriptKey = async (w: Awaited<ReturnType<typeof world>>) => {
+    const key = transcriptKeyFromSignature('ab'.repeat(64));
+    await request(w.app).put('/api/agents/mine/transcript-key').set({ Authorization: `Bearer ${w.session}` }).send({ publicKey: key.publicKey }).expect(200);
+    return key;
+  };
+
+  it('approve_all holds the sealed answer locally until the owner approves on the web', async () => {
+    const w = await world();
+    const key = await withTranscriptKey(w);
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', approveAll);
+    const held = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    expect(held.json.pendingApproval).toBe(true);
+    expect(held.text).toContain('http://w/seller/activity#approvals');
+    expect((await w.deps.db.query(`select 1 from envelopes where campaign_id = $1`, [w.campaignId])).length).toBe(0);
+    // The queued copy is sealed to the owner's transcript key, never to the platform's envelope (report) key.
+    const { pending } = (await request(w.app).get('/api/agents/mine/approvals').set({ Authorization: `Bearer ${w.session}` })).body;
+    expect(openEnvelope(key.privateKey, pending[0].envelope)).toEqual(canonicalOf(w.owner.address, w.campaignId, { q1: 0, q2: 3, q3: 1 }));
+    expect(() => openEnvelope(keys.encSk, pending[0].envelope)).toThrow();
+    // Held means held: a second submit cannot replace it and evaluate_campaign does not abstain it.
+    expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 1, q2: 1, q3: 1 } })).isError).toBe(true);
+    expect((await call('evaluate_campaign', { campaignId: w.campaignId })).json.decision).toBe('awaiting_owner_approval');
+    expect((await call('check_approvals')).json.waiting).toEqual([w.campaignId]);
+    await request(w.app).post(`/api/agents/mine/approvals/${w.campaignId}`).set({ Authorization: `Bearer ${w.session}` }).send({ decision: 'approve' }).expect(204);
+    expect((await call('check_approvals')).json.submitted).toEqual([w.campaignId]);
+    const [row] = await w.deps.db.query<{ envelope: Envelope }>(`select envelope from envelopes where campaign_id = $1`, [w.campaignId]);
+    expect(openEnvelope(keys.encSk, row!.envelope)).toEqual(canonicalOf(w.owner.address, w.campaignId, { q1: 0, q2: 3, q3: 1 }));
+    const { copies } = (await request(w.app).get('/api/agents/mine/answer-copies').set({ Authorization: `Bearer ${w.session}` })).body;
+    expect(copies).toHaveLength(1);
+    expect((await call('check_approvals')).json.waiting).toEqual([]);
+    expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } })).isError).toBe(true);
+    await w.srv.close();
+  });
+
+  it('list_campaigns flushes approved answers first', async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', approveAll);
+    await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    await request(w.app).post(`/api/agents/mine/approvals/${w.campaignId}`).set({ Authorization: `Bearer ${w.session}` }).send({ decision: 'approve' }).expect(204);
+    await call('list_campaigns');
+    expect((await w.deps.db.query(`select 1 from envelopes where campaign_id = $1`, [w.campaignId])).length).toBe(1);
+    await w.srv.close();
+  });
+
+  it('approve_all with a rejected answer records an abstain and submits nothing', async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', approveAll);
+    await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    await request(w.app).post(`/api/agents/mine/approvals/${w.campaignId}`).set({ Authorization: `Bearer ${w.session}` }).send({ decision: 'reject' }).expect(204);
+    expect((await call('check_approvals')).json.rejected).toEqual([w.campaignId]);
+    const [d] = await w.deps.db.query<{ kind: string; reason: string }>(`select kind, reason from agent_decisions where campaign_id = $1`, [w.campaignId]);
+    expect(d).toMatchObject({ kind: 'abstain', reason: 'owner declined' });
+    expect((await w.deps.db.query(`select 1 from envelopes where campaign_id = $1`, [w.campaignId])).length).toBe(0);
+    expect((await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } })).isError).toBe(true); // final, locally too
+    await w.srv.close();
+  });
+
+  it('approve_all drops a held answer once the deadline passes', async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const dataDir = mkdtempSync(join(tmpdir(), 'as-'));
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir, agentToken: w.agentToken });
+    await call('set_policy', approveAll);
+    await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    const file = join(dataDir, 'agent-survey.json');
+    const st = JSON.parse(readFileSync(file, 'utf8'));
+    st.pending[w.campaignId].deadlineMs = Date.now() - 1;
+    writeFileSync(file, JSON.stringify(st));
+    expect((await call('check_approvals')).json).toMatchObject({ expired: [w.campaignId], waiting: [], submitted: [] });
+    expect(JSON.parse(readFileSync(file, 'utf8')).pending).toEqual({});
+    await w.srv.close();
+  });
+
+  it('approve_all counts held answers toward the daily limit', async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const dataDir = mkdtempSync(join(tmpdir(), 'as-'));
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir, agentToken: w.agentToken });
+    await call('set_policy', { ...approveAll, dailyLimit: 1 });
+    const file = join(dataDir, 'agent-survey.json');
+    const st = JSON.parse(readFileSync(file, 'utf8'));
+    st.pending = { ['f'.repeat(64)]: { envelope: {}, copy: {}, deadlineMs: Date.now() + 600_000 } }; // another answer already waiting
+    writeFileSync(file, JSON.stringify(st));
+    const refused = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toMatch(/daily limit 1 reached/);
+    await w.srv.close();
+  });
+
+  it('approve_all fails with a pointer to the web when the owner has no transcript key', async () => {
     const w = await world();
     const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
-    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5, approvalMode: 'approve_all' });
+    await call('set_policy', approveAll);
     const refused = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true });
     expect(refused.isError).toBe(true);
-    expect(refused.text).toMatch(/approve_all/);
+    expect(refused.text).toContain('http://w/seller/activity?tab=answers');
     expect((await w.deps.db.query(`select 1 from envelopes where campaign_id = $1`, [w.campaignId])).length).toBe(0);
+    expect((await w.deps.db.query(`select 1 from answer_approvals where campaign_id = $1`, [w.campaignId])).length).toBe(0);
     await w.srv.close();
   });
 

@@ -1,7 +1,7 @@
 // plugins/mcp/src/store.ts
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AudienceProfile, OwnerPolicy } from '@as/shared';
+import type { AudienceProfile, Envelope, OwnerPolicy } from '@as/shared';
 import type { OwnerFact } from './facts.js';
 
 /** Local plugin state in ${CLAUDE_PLUGIN_DATA}: the owner policy and profile never leave this machine. */
@@ -18,6 +18,12 @@ export interface LocalState {
   matchAudience?: boolean;
   /** What the owner told the agent about themselves (remember_owner_fact), filed by category. Never sent anywhere. */
   facts?: OwnerFact[];
+  /**
+   * approve_all: answers sealed but held on this machine until the owner approves them on the web. `envelope` is sealed to the
+   * platform key and sent only after approval; `copy` (sealed to the owner's transcript key) is what the owner reviewed.
+   * Held answers count toward dailyLimit while they wait.
+   */
+  pending?: Record<string, { envelope: Envelope; copy: Envelope; deadlineMs: number }>;
 }
 
 export const DEFAULT_POLICY: OwnerPolicy = {
