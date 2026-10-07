@@ -55,7 +55,8 @@ export function screenCampaign(spec: CampaignSpec, nowMs: number, maxResponsesCa
   if (BigInt(spec.rewardLamports) < MIN_REWARD_LAMPORTS) reasons.push('reward below 0.001 SOL');
   if (spec.maxResponses < 1 || spec.maxResponses > maxResponsesCap) reasons.push(`maxResponses must be 1..${maxResponsesCap}`);
   if (spec.minCohort < 1 || spec.minCohort > spec.maxResponses) reasons.push('minCohort must be 1..maxResponses');
-  if (spec.deadlineMs < nowMs + 60_000) reasons.push('deadline must be at least 1 minute ahead');
+  // 30 s, not 60: the web form's 1-minute demo deadline must survive the request's network delay.
+  if (spec.deadlineMs < nowMs + 30_000) reasons.push('deadline must be at least 30 seconds ahead');
   // Wording blocks (shared/src/lint.ts): meta options, work requests, credential asks, unlabeled scales. The finer
   // option-count rule (5 substantive + 1 escape) lives there too; `bad options` above only bounds the total.
   for (const i of lintCampaign(spec)) if (i.level === 'block') reasons.push(i.message);

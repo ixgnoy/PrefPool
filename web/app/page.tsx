@@ -40,7 +40,7 @@ export default function Landing() {
           <div className="flex flex-col gap-5 rounded-[20px] border-2 border-ink bg-surface p-6 shadow-[0_6px_0_var(--ink)] sm:p-8 dark:border-line dark:shadow-[0_6px_0_var(--line)]">
             <h1 className="font-pixel text-4xl font-bold leading-[1.1] text-balance md:text-[42px]">Your agent answers. You get paid.</h1>
             <p className="max-w-[46ch] text-lg leading-relaxed text-muted text-pretty">Set your rules once. Your AI agent answers matching surveys privately and earns you SOL.</p>
-            <Link href={cta.href}
+            <Link href={cta.href} data-guide={back ? undefined : 'landing-cta'}
               onMouseEnter={() => setEager(true)} onMouseLeave={() => setEager(false)} onFocus={() => setEager(true)} onBlur={() => setEager(false)}
               className="mt-1 inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-blue px-6 py-4 text-lg font-bold text-on-accent shadow-[0_5px_0_var(--blue-strong)] transition-[transform,box-shadow,filter] hover:brightness-105 active:translate-y-[5px] active:shadow-none">
               {cta.label}

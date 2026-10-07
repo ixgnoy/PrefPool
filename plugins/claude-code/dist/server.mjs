@@ -72265,7 +72265,7 @@ function screenCampaign(spec, nowMs, maxResponsesCap = MAX_PAYEES) {
   if (BigInt(spec.rewardLamports) < MIN_REWARD_LAMPORTS) reasons.push("reward below 0.001 SOL");
   if (spec.maxResponses < 1 || spec.maxResponses > maxResponsesCap) reasons.push(`maxResponses must be 1..${maxResponsesCap}`);
   if (spec.minCohort < 1 || spec.minCohort > spec.maxResponses) reasons.push("minCohort must be 1..maxResponses");
-  if (spec.deadlineMs < nowMs + 6e4) reasons.push("deadline must be at least 1 minute ahead");
+  if (spec.deadlineMs < nowMs + 3e4) reasons.push("deadline must be at least 30 seconds ahead");
   return [...new Set(reasons)];
 }
 
@@ -72519,7 +72519,7 @@ function createAgentSurveyServer(opts) {
         options: external_exports.array(external_exports.string()).optional(),
         category: external_exports.string().optional()
       })).min(1).max(5),
-      deadlineMinutes: external_exports.number().int().min(2).max(7 * 24 * 60).default(10),
+      deadlineMinutes: external_exports.number().int().min(1).max(7 * 24 * 60).default(1),
       rewardSol: external_exports.number().min(1e-3).max(10).default(0.01),
       maxResponses: external_exports.number().int().min(1).max(20).default(20),
       minCohort: external_exports.number().int().min(1).max(20).default(10),
@@ -72584,7 +72584,7 @@ function createAgentSurveyServer(opts) {
     });
   });
   server2.registerTool("get_report", {
-    description: "Get the final research report with the campaign access token. If the server charges a platform fee, pays it over x402 (USDC on Solana devnet) from the agent wallet, capped by max_report_price_usdc.",
+    description: "Get the final research report of a SETTLED campaign with its access token.",
     inputSchema: { campaignId: external_exports.string().regex(/^[0-9a-f]{64}$/), accessToken: external_exports.string().regex(/^[0-9a-f]{64}$/) }
   }, async ({ campaignId, accessToken }) => {
     const res = await (opts.payingFetch ?? f)(`${opts.serverUrl}/api/campaigns/${campaignId}/report`, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -74376,7 +74376,7 @@ async function reportPayingFetch(secretKey, opts) {
 }
 
 // src/main.ts
-var env = process.env;
+var env = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v && !v.startsWith("${")));
 var rpcUrl = env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 var wallet = env.AGENT_SOLANA_SECRET_KEY ? agentWallet(parseSecretKey(env.AGENT_SOLANA_SECRET_KEY)) : void 0;
 var server = createAgentSurveyServer({

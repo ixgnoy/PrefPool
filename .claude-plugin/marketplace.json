@@ -1,14 +1,14 @@
 {
   "name": "agent-survey",
-  "description": "Agent Survey Marketplace plugins: agent-to-agent research on Solana.",
+  "description": "PrefPool plugins: agent-to-agent research on Solana.",
   "owner": {
-    "name": "Agent Survey team"
+    "name": "PrefPool team"
   },
   "plugins": [
     {
       "name": "agent-survey",
       "source": "./plugins/claude-code",
-      "description": "Answer paid research campaigns under your policy (rewards in SOL), or run campaigns and buy x402 reports (USDC) on Solana devnet."
+      "description": "Answer paid research campaigns under your policy (rewards in SOL), or run research campaigns on Solana devnet."
     }
   ]
 }

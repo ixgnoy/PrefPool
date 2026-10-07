@@ -12,3 +12,7 @@ export const SOLFLARE_URL = 'https://solflare.com';
 export const BACKPACK_URL = 'https://backpack.app';
 export const DEMO_NOTE = 'Demo network: 29 synthetic owner profiles + 1 live wallet respondent.';
 export const PRIVACY_NOTE = 'Companies never see your individual answers. They only see totals for groups of 15+.';
+
+/** Where judges' and users' own agents connect: the deployed stack, even when this page runs locally. */
+export const AGENT_SERVER_URL = process.env.NEXT_PUBLIC_AGENT_SERVER_URL ?? 'https://server-production-c6c9f.up.railway.app';
+export const AGENT_WEB_URL = process.env.NEXT_PUBLIC_AGENT_WEB_URL ?? 'https://prefpool.vercel.app';

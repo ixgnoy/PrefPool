@@ -8,6 +8,7 @@ import { Check } from 'pixelarticons/react/Check';
 import { Copy } from 'pixelarticons/react/Copy';
 import { ExternalLink } from 'pixelarticons/react/ExternalLink';
 import { Logout } from 'pixelarticons/react/Logout';
+import { startGuide } from './Guide';
 import { Fin, type Pose } from './Fin';
 import { cx } from './ui';
 import { explorerAddress } from '@/lib/config';
@@ -125,7 +126,7 @@ function SettingsMenu() {
   const seg = (on: boolean) => cx('flex-1 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition', on ? 'bg-surface text-ink shadow-[0_2px_0_var(--line)]' : 'text-muted hover:text-ink');
   return (
     <Dropdown label="Settings" trigger={<SlidersHorizontal width={20} height={20} aria-hidden />}>
-      {() => (
+      {(close) => (
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-0.5 rounded-xl bg-warn-soft px-3 py-2 text-warn-ink">
             <span className="text-[13px] font-bold">Test network</span>
@@ -135,6 +136,8 @@ function SettingsMenu() {
             <button type="button" aria-pressed={view === 'user'} className={seg(view === 'user')} onClick={() => setView('user')}>User</button>
             <button type="button" aria-pressed={view === 'dev'} className={seg(view === 'dev')} onClick={() => setView('dev')}>Dev</button>
           </Row>
+          <button type="button" className="rounded-xl bg-blue-soft px-3 py-2 text-left text-[13px] font-bold text-blue hover:brightness-95"
+            onClick={() => { close(); startGuide(); }}>Start the guide</button>
           <Row label="Theme">
             <button type="button" aria-pressed={theme !== 'dark'} className={seg(theme !== 'dark')} onClick={() => theme === 'dark' && toggleTheme()}>Lagoon</button>
             <button type="button" aria-pressed={theme === 'dark'} className={seg(theme === 'dark')} onClick={() => theme !== 'dark' && toggleTheme()}>Deep sea</button>

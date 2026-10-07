@@ -73,12 +73,12 @@ export function WalletConnect({ next, onConnected, intro }: Props) {
           {intro && <p className="text-[15px] text-muted">{intro}</p>}
         </div>
         {wallets && wallets.length === 0 && (
-          <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <Card className="flex flex-wrap items-center justify-between gap-3 p-4" data-guide="wallet-list">
             <span className="text-sm"><b>No Solana wallet found.</b> Install Phantom (or Solflare / Backpack), set it to Devnet, then reload this page.</span>
             <Button href={PHANTOM_URL} variant="secondary" size="sm">Install Phantom<ExternalLink aria-hidden width={14} height={14} /></Button>
           </Card>
         )}
-        <div className="flex max-w-md flex-col gap-2">
+        <div className="flex max-w-md flex-col gap-2" data-guide="wallet-list">
           {wallets === null && <div className="h-14 animate-pulse rounded-xl bg-subtle" />}
           {list.map((w) => (
             <button key={w.id} type="button" onClick={() => start(w)}

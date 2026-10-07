@@ -367,7 +367,7 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       title: z.string(), category: askableCategory,
       questions: z.array(z.object({ id: z.string(), type: z.enum(['single_choice', 'likert_5']), text: z.string(),
         options: z.array(z.string()).optional(), category: askableCategory.optional() })).min(1).max(5),
-      deadlineMinutes: z.number().int().min(2).max(7 * 24 * 60).default(10),
+      deadlineMinutes: z.number().int().min(1).max(7 * 24 * 60).default(1),
       rewardSol: z.number().min(0.001).max(10).default(0.01),
       maxResponses: z.number().int().min(1).max(20).default(20),
       minCohort: z.number().int().min(1).max(20).default(10),
@@ -411,7 +411,7 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   });
 
   server.registerTool('get_report', {
-    description: 'Get the final research report with the campaign access token. If the server charges a platform fee, pays it over x402 (USDC on Solana devnet) from the agent wallet, capped by max_report_price_usdc.',
+    description: 'Get the final research report of a SETTLED campaign with its access token.',
     inputSchema: { campaignId: z.string().regex(/^[0-9a-f]{64}$/), accessToken: z.string().regex(/^[0-9a-f]{64}$/) },
   }, async ({ campaignId, accessToken }) => {
     const res = await (opts.payingFetch ?? f)(`${opts.serverUrl}/api/campaigns/${campaignId}/report`, { headers: { Authorization: `Bearer ${accessToken}` } });

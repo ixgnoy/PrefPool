@@ -137,7 +137,7 @@ describe('screenCampaign', () => {
   it('rejects bad economics and deadlines', () => {
     expect(screenCampaign({ ...spec, rewardLamports: '500000' }, now)).toContain('reward below 0.001 SOL');
     expect(screenCampaign({ ...spec, maxResponses: 21 }, now)).toContain('maxResponses must be 1..20');
-    expect(screenCampaign({ ...spec, deadlineMs: now }, now)).toContain('deadline must be at least 1 minute ahead');
+    expect(screenCampaign({ ...spec, deadlineMs: now }, now)).toContain('deadline must be at least 30 seconds ahead');
   });
 });
 

@@ -3,6 +3,7 @@ import { VerifyHuman } from '@/components/VerifyHuman';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Fin, type Pose } from '@/components/Fin';
 import { GuardrailEditor } from '@/components/GuardrailEditor';
+import { GUIDE_DASHBOARD_STEP, startGuide } from '@/components/Guide';
 import { PairAgent } from '@/components/PairAgent';
 import { WalletConnect } from '@/components/WalletConnect';
 import { Button, Card, Progress, cx } from '@/components/ui';
@@ -33,6 +34,8 @@ export default function Onboarding() {
 
   const go = (n: number) => { setStep(n); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const done = step === 4;
+  // Finished: hand over to the guide at "Go to my dashboard", which leads on to the first-campaign choice.
+  useEffect(() => { if (done) startGuide(GUIDE_DASHBOARD_STEP); }, [done]);
   const fin = step === 3 && paired ? { pose: 'found' as Pose, caption: "We're connected! Hit Finish and I'll start looking for work." }
     : step === 0 && session ? { pose: 'paid' as Pose, caption: "Wallet found! This is where your SOL lands. Let's keep going." }
       : FIN[Math.min(step, 3)]!;
@@ -40,10 +43,15 @@ export default function Onboarding() {
   if (done) {
     return (
       <Card className="chunky rise mx-auto flex max-w-2xl flex-col items-center gap-5 rounded-[20px] px-6 py-14 text-center">
-        <div className="grid h-44 w-56 place-items-center rounded-3xl bg-tank"><Fin pose="found" label="Fin found a job: your agent is on duty" /></div>
-        <h1 className="font-pixel text-4xl font-bold">Your agent is on duty.</h1>
-        <p className="max-w-md text-muted">It checks new campaigns against your rules and answers the ones that pass. Earnings arrive in {session ? short(session.address, 12, 4) : 'your wallet'}.</p>
-        <Button href="/seller" size="lg">Go to my dashboard</Button>
+        <div className="grid h-44 w-56 place-items-center rounded-3xl bg-tank"><Fin pose={paired ? 'found' : 'policy'} label={paired ? 'Fin found a job: your agent is on duty' : 'Fin waiting for your agent'} /></div>
+        <h1 className="font-pixel text-4xl font-bold">{paired ? 'Your agent is on duty.' : 'Your rules are saved.'}</h1>
+        <p className="max-w-md text-muted">{paired
+          ? <>It checks new campaigns against your rules and answers the ones that pass. Earnings arrive in {session ? short(session.address, 12, 4) : 'your wallet'}.</>
+          : 'Pair your agent whenever you are ready: it starts answering campaigns under these rules as soon as it connects.'}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {!paired && <Button href="/seller/agent" size="lg">Pair my agent</Button>}
+          <Button href="/seller" size="lg" variant={paired ? undefined : 'secondary'} data-guide="ob-dashboard">Go to my dashboard</Button>
+        </div>
         <span className="text-xs text-muted">{DEMO_NOTE}</span>
       </Card>
     );
@@ -66,7 +74,7 @@ export default function Onboarding() {
               <h2 className="font-pixel text-[28px] font-bold">Wallet connected</h2>
               <p className="text-muted">This wallet is where your earnings arrive.</p>
               <div className="rounded-xl bg-subtle px-4 py-3 font-mono text-sm">{short(session.address, 18, 6)}</div>
-              <Actions><Button variant="ghost" onClick={signOut}>Use another wallet</Button><Button onClick={() => go(1)}>Continue</Button></Actions>
+              <Actions><Button variant="ghost" onClick={signOut}>Use another wallet</Button><Button onClick={() => go(1)} data-guide="ob-continue-0">Continue</Button></Actions>
             </div>
           ) : (
             <WalletConnect intro="This wallet is where your earnings arrive." onConnected={() => setTimeout(() => go(1), 700)} />
@@ -85,7 +93,7 @@ export default function Onboarding() {
               <ProfileMatch on={match} onToggle={setMatch} profile={p} onChange={setP} />
               <Actions note={match ? 'Saved on this device' : undefined}>
                 <Button variant="secondary" onClick={() => go(0)}>Back</Button>
-                <Button onClick={() => { setProfile(p); setMatchProfile(match); go(2); }}>{match ? 'Continue' : 'Skip for now'}</Button>
+                <Button data-guide="ob-continue-1" onClick={() => { setProfile(p); setMatchProfile(match); go(2); }}>{match ? 'Continue' : 'Skip for now'}</Button>
               </Actions>
             </div>
           )}
@@ -100,7 +108,7 @@ export default function Onboarding() {
               <Actions>
                 <Button variant="secondary" onClick={() => go(1)}>Back</Button>
                 {saveError && <span role="alert" className="text-sm font-bold text-danger-ink">{saveError}</span>}
-                <Button onClick={async () => {
+                <Button data-guide="ob-rules" onClick={async () => {
                   // Existing agents save now; a new agent gets these rules when it registers in the next step.
                   try { if (agent) await savePolicy(draft); setSaveError(null); go(3); } catch (e) { setSaveError((e as Error).message); }
                 }}>Use these rules</Button>
@@ -114,14 +122,15 @@ export default function Onboarding() {
                 <h2 className="font-pixel text-[28px] font-bold">Pair your agent</h2>
                 <p className="text-muted">Your agent answers through our plugin. The website is only for setup and watching.</p>
               </div>
-              <PairAgent policy={draft} />
+              <PairAgent policy={draft} demoAgent={false} />
               {paired && <VerifyHuman />}
               {paired && agent?.kind === 'plugin' && (
                 <p className="rounded-2xl bg-blue-soft p-4 text-sm leading-relaxed"><b>Next: calibration.</b> Your agent gets 15 quick questions about you. When it has answered, you answer the same ones on the <a href="/seller/calibration" className="font-bold text-blue underline">Calibration</a> page, so campaigns can trust it knows you.</p>
               )}
               <Actions>
                 <Button variant="secondary" onClick={() => go(2)}>Back</Button>
-                <Button onClick={() => go(4)} disabled={!paired}>Finish</Button>
+                {!paired && <Button variant="secondary" onClick={() => go(4)} data-guide="ob-pair-done">Skip for now</Button>}
+                <Button onClick={() => go(4)} disabled={!paired} data-guide={paired ? 'ob-pair-done' : undefined}>Finish</Button>
               </Actions>
             </div>
           )}

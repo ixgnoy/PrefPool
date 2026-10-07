@@ -137,8 +137,8 @@ export function CampaignMonitor({ id, owner }: { id: string; owner: boolean }) {
         </p>
       </div>
 
-      <Progress steps={TIMELINE.map((l, i) => (i === 4 && live === 'insufficient' ? (refunding ? 'Refunding' : 'Refunded') : l))} current={liveStep}
-        selected={viewStep} onSelect={(i) => setViewStep(i === Math.min(liveStep, TIMELINE.length - 1) ? null : i)} />
+      <div data-guide="cm-timeline"><Progress steps={TIMELINE.map((l, i) => (i === 4 && live === 'insufficient' ? (refunding ? 'Refunding' : 'Refunded') : l))} current={liveStep}
+        selected={viewStep} onSelect={(i) => setViewStep(i === Math.min(liveStep, TIMELINE.length - 1) ? null : i)} /></div>
       {viewStep !== null && (
         <div className="rise -mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-blue-soft px-3 py-2 text-[13px]">
           <span className="min-w-0">Replaying <b>{TIMELINE[viewStep]}</b>: {evidence[viewStep]}</span>
