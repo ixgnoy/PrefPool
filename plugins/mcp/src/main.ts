@@ -9,7 +9,7 @@ import { reportPayingFetch } from './x402.js';
 
 const env = process.env;
 const rpcUrl = env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-/** The agent's own devnet keypair: pays the USDC report fee (x402) and, within max_budget_sol, funds its campaigns. */
+/** The agent's own devnet keypair: within max_budget_sol, funds the campaigns it creates. */
 const wallet = env.AGENT_SOLANA_SECRET_KEY ? agentWallet(parseSecretKey(env.AGENT_SOLANA_SECRET_KEY)) : undefined;
 
 const server = createAgentSurveyServer({

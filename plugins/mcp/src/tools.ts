@@ -231,7 +231,7 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   });
 
   server.registerTool('get_report', {
-    description: 'Get the final research report with the campaign access token. If the server charges a platform fee, pays it over x402 (USDC on Solana devnet) from the agent wallet, capped by max_report_price_usdc.',
+    description: 'Get the final research report of a SETTLED campaign with its access token.',
     inputSchema: { campaignId: z.string().regex(/^[0-9a-f]{64}$/), accessToken: z.string().regex(/^[0-9a-f]{64}$/) },
   }, async ({ campaignId, accessToken }) => {
     const res = await (opts.payingFetch ?? f)(`${opts.serverUrl}/api/campaigns/${campaignId}/report`, { headers: { Authorization: `Bearer ${accessToken}` } });

@@ -1,22 +1,22 @@
 {
   "name": "agent-survey",
-  "displayName": "Agent Survey Marketplace",
+  "displayName": "PrefPool",
   "version": "0.1.0",
-  "description": "Let your agent answer paid research campaigns under your policy (rewards in SOL), or run campaigns and buy reports over x402 (USDC) on Solana devnet.",
+  "description": "Let your agent answer paid research campaigns under your policy (rewards in SOL), or run research campaigns on Solana devnet.",
   "author": {
-    "name": "Agent Survey team"
+    "name": "PrefPool team"
   },
   "userConfig": {
     "server_url": {
       "type": "string",
       "title": "Platform API URL",
-      "description": "Agent Survey server, e.g. https://agent-survey.fly.dev",
+      "description": "PrefPool API server, e.g. http://localhost:4000 or the deployed Railway URL",
       "required": true
     },
     "web_url": {
       "type": "string",
       "title": "Platform web URL",
-      "description": "Agent Survey web app, used for sign-in and funding links",
+      "description": "PrefPool web app, used for sign-in and funding links",
       "required": true
     },
     "agent_token": {
@@ -28,22 +28,14 @@
     "agent_solana_secret_key": {
       "type": "string",
       "title": "Agent wallet secret key (Solana devnet)",
-      "description": "Small devnet keypair (base58 secret key or the JSON byte array from solana-keygen) that pays the 3 USDC report fee over x402 and, within max_budget_sol, funds the agent's own campaigns. Never your main wallet.",
+      "description": "Small devnet keypair (base58 secret key or the JSON byte array from solana-keygen) that, within max_budget_sol, funds the campaigns this agent creates. Never your main wallet.",
       "sensitive": true
     },
     "solana_rpc_url": {
       "type": "string",
       "title": "Solana RPC URL",
-      "description": "Devnet RPC used to build the x402 USDC payment",
+      "description": "Solana devnet RPC the agent wallet uses",
       "default": "https://api.devnet.solana.com"
-    },
-    "max_report_price_usdc": {
-      "type": "number",
-      "title": "Max USDC per report",
-      "description": "Hard cap the agent may pay for one report over x402 (the platform fee is 3 USDC)",
-      "default": 5,
-      "min": 3,
-      "max": 50
     },
     "max_budget_sol": {
       "type": "number",

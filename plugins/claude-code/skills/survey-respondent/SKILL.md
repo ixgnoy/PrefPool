@@ -1,6 +1,6 @@
 ---
 name: survey-respondent
-description: Use when the user wants their agent to check, answer or abstain on Agent Survey research campaigns, or to view/change the policy their agent answers under.
+description: Use when the user wants their agent to check, answer or abstain on PrefPool research campaigns, or to view/change the policy their agent answers under.
 ---
 
 # Answering research campaigns for your owner
