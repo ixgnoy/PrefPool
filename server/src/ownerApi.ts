@@ -2,7 +2,7 @@
 // the seller's agent (status, guardrails, pause, activity), the buyer's campaign list and refund escape hatch,
 // and the dev-view trace. Wallet-session auth; nothing here ever returns answers, tokens or private keys.
 import { Router, type Request } from 'express';
-import { ABSTAIN_REASONS, type SettlementReport } from '@as/shared';
+import { ABSTAIN_REASONS, NEEDS_APPROVAL_REASON, type SettlementReport } from '@as/shared';
 import { z } from 'zod';
 import { requireSession, type AuthedRequest } from './auth.js';
 import { campaignView, getCampaign } from './campaigns.js';
@@ -27,7 +27,7 @@ const REFUNDABLE = ['FUNDED', 'ACTIVE', 'AGGREGATING', 'INSUFFICIENT_COHORT', 'S
 const DAY_MS = 86_400_000;
 
 type AbstainBucket = 'blocked_category' | 'category_not_allowed' | 'reward_below_minimum' | 'daily_limit' | 'no_matching_profile' | 'unverified' | 'uncalibrated'
-  | 'task_request' | 'credential_ask' | 'unknown_answer' | 'other';
+  | 'task_request' | 'credential_ask' | 'unknown_answer' | 'needs_approval' | 'other';
 /** Buckets the content-free reason strings evaluatePolicy produces (shared/src/policy.ts) and abstain_campaign's fixed reasons (plugin). */
 const bucket = (reason: string | null): AbstainBucket =>
   reason?.startsWith('blocked category') ? 'blocked_category'
@@ -36,7 +36,7 @@ const bucket = (reason: string | null): AbstainBucket =>
         : reason?.startsWith('daily limit') ? 'daily_limit' : reason?.startsWith('no matching profile') ? 'no_matching_profile'
           : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated'
             : reason === ABSTAIN_REASONS.task_request ? 'task_request' : reason === ABSTAIN_REASONS.credential_ask ? 'credential_ask'
-              : reason === ABSTAIN_REASONS.unknown_answer ? 'unknown_answer' : 'other';
+              : reason === ABSTAIN_REASONS.unknown_answer ? 'unknown_answer' : reason === NEEDS_APPROVAL_REASON ? 'needs_approval' : 'other';
 
 interface AgentRow {
   id: string; kind: string; address: string; policy: unknown; paused: boolean; last_seen_at: Date | string | null;
@@ -96,7 +96,7 @@ export function ownerRoutes(deps: Deps): Router {
     const today = Math.floor(now / DAY_MS) * DAY_MS;
     const byDay = new Map<number, bigint>();
     const abstainReasons: Record<AbstainBucket, number> = { blocked_category: 0, category_not_allowed: 0, reward_below_minimum: 0, daily_limit: 0, no_matching_profile: 0, unverified: 0, uncalibrated: 0,
-      task_request: 0, credential_ask: 0, unknown_answer: 0, other: 0 };
+      task_request: 0, credential_ask: 0, unknown_answer: 0, needs_approval: 0, other: 0 };
     let earned = 0n, pending = 0n, todayCount = 0;
     const cats = new Map<string, { category: string; seen: number; answered: number; earned: bigint }>();
     const items = rows.map((d) => {

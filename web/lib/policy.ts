@@ -1,6 +1,6 @@
 // web/lib/policy.ts — UI vocabulary for guardrails. The decision itself is `evaluatePolicy` from @as/shared, the same
 // code the agents and the plugin run, so the "Try it" preview can never disagree with a real agent.
-import { ABSTAIN_REASONS, SENSITIVE_CATEGORIES, evaluatePolicy as sharedEvaluate, type CampaignSpec, type OwnerPolicy } from '@as/shared';
+import { ABSTAIN_REASONS, NEEDS_APPROVAL_REASON, SENSITIVE_CATEGORIES, evaluatePolicy as sharedEvaluate, type CampaignSpec, type OwnerPolicy } from '@as/shared';
 import type { AbstainBucket } from './api';
 
 export type { OwnerPolicy };
@@ -59,6 +59,7 @@ export const REASON_LABEL: Record<AbstainReason, string> = {
   task_request: 'Task request',
   credential_ask: 'Asked for secrets',
   unknown_answer: "Didn't know the answer",
+  needs_approval: 'Needs your approval',
   other: 'Other',
 };
 /** Where each abstain reason is controlled, for "edit rule" links. */
@@ -74,6 +75,8 @@ export const REASON_RULE: Record<AbstainReason, { label: string; href: string }>
   task_request: { label: 'Guardrails', href: '/seller/guardrails' },
   credential_ask: { label: 'Guardrails', href: '/seller/guardrails' },
   unknown_answer: { label: 'Guardrails', href: '/seller/guardrails' },
+  // The web agent skipped because the approval mode wants an OK it can't ask for.
+  needs_approval: { label: 'Before answering', href: '/seller/guardrails#approval' },
   other: { label: 'Guardrails', href: '/seller/guardrails' },
 };
 export const bucketOf = (reason: string | null): AbstainReason =>
@@ -83,7 +86,7 @@ export const bucketOf = (reason: string | null): AbstainReason =>
         : reason?.startsWith('daily limit') ? 'daily_limit' : reason?.startsWith('no matching profile') ? 'no_matching_profile'
           : reason?.startsWith('unverified') ? 'unverified' : reason?.startsWith('uncalibrated') ? 'uncalibrated'
             : reason === ABSTAIN_REASONS.task_request ? 'task_request' : reason === ABSTAIN_REASONS.credential_ask ? 'credential_ask'
-              : reason === ABSTAIN_REASONS.unknown_answer ? 'unknown_answer' : 'other';
+              : reason === ABSTAIN_REASONS.unknown_answer ? 'unknown_answer' : reason === NEEDS_APPROVAL_REASON ? 'needs_approval' : 'other';
 
 export type PreviewCampaign = Pick<CampaignSpec, 'category' | 'questions' | 'rewardLamports'>;
 export type Decision = { kind: 'answer' } | { kind: 'abstain'; reason: AbstainReason; text: string };

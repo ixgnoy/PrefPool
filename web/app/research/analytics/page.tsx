@@ -74,7 +74,7 @@ export default function BuyerAnalyticsPage() {
           </div>
           {declines.length === 0 ? <p className="text-sm text-muted">Nobody skipped yet.</p> : declines.map(([r, n]) => (
             <div key={r} className="flex flex-col gap-1">
-              <span className="flex justify-between text-[13px]"><span className="font-semibold">{REASON_LABEL[r] ?? r}</span><span className="font-mono text-muted">{n}</span></span>
+              <span className="flex justify-between text-[13px]"><span className="font-semibold">{r === 'needs_approval' ? 'Needs owner approval' : (REASON_LABEL[r] ?? r)}</span><span className="font-mono text-muted">{n}</span></span>
               <span className="h-2 overflow-hidden bg-subtle"><span className="block h-full bg-blue/70" style={{ width: `${(n / declineMax) * 100}%` }} /></span>
             </div>
           ))}

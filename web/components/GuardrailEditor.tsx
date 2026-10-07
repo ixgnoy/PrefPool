@@ -16,6 +16,12 @@ const SAMPLES: (PreviewCampaign & { title: string; meta: string })[] = [
   { title: 'Weekend travel habits 2026', meta: 'personal life · 0.01 SOL', category: 'personal_life', questions: [q('q1')], rewardLamports: '10000000' },
 ];
 
+const APPROVAL_MODES = [
+  ['auto', 'Acts on its own', 'Answers or skips using only these rules.'],
+  ['approve_sensitive', 'Asks me about personal topics', 'Spending and personal-life campaigns wait for your OK in the chat.'],
+  ['approve_all', 'Every answer waits', 'Each sealed answer waits on the Activity page until you approve it.'],
+] as const satisfies readonly (readonly [OwnerPolicy['approvalMode'], string, string])[];
+
 const Lock = () => (
   <LockIcon aria-label="Sensitive category" width={15} height={15} />
 );
@@ -78,13 +84,19 @@ export function GuardrailEditor({ value, onChange, preview = true }: { value: Ow
 
         <Card id="approval" className="flex scroll-mt-24 flex-col gap-3 p-5">
           <h3 className="font-bold">Before answering</h3>
-          <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Before answering">
-            {([
-              ['auto', 'Acts on its own', 'Answers or skips using only these rules.'],
-              ['approve_sensitive', 'Asks me about personal topics', 'Spending and personal-life campaigns wait for your OK in the chat.'],
-              ['approve_all', 'Every answer waits', 'Each sealed answer waits on the Activity page until you approve it.'],
-            ] as const).map(([mode, title, sub]) => (
+          {/* WAI-ARIA radio group: one tab stop (the checked option); arrow keys move and select. */}
+          <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Before answering" onKeyDown={(e) => {
+            const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+            const to = e.key === 'Home' ? 0 : e.key === 'End' ? APPROVAL_MODES.length - 1
+              : step ? (Math.max(0, APPROVAL_MODES.findIndex(([m]) => m === value.approvalMode)) + step + APPROVAL_MODES.length) % APPROVAL_MODES.length : -1;
+            if (to < 0) return;
+            e.preventDefault();
+            onChange({ ...value, approvalMode: APPROVAL_MODES[to]![0] });
+            (e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[to])?.focus();
+          }}>
+            {APPROVAL_MODES.map(([mode, title, sub], i) => (
               <button key={mode} type="button" role="radio" aria-checked={value.approvalMode === mode} onClick={() => onChange({ ...value, approvalMode: mode })}
+                tabIndex={value.approvalMode === mode || (i === 0 && !APPROVAL_MODES.some(([m]) => m === value.approvalMode)) ? 0 : -1}
                 className={cx('flex flex-col gap-1 rounded-2xl border-2 p-3 text-left transition', value.approvalMode === mode ? 'border-ok bg-ok-soft' : 'border-line bg-surface hover:border-muted')}>
                 <span className="font-semibold">{title}</span><span className="text-[13px] text-muted">{sub}</span>
               </button>

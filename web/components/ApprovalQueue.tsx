@@ -2,7 +2,7 @@
 // Approval queue (policy approve_all): answers the plugin holds on the owner's machine until the owner says yes. The server
 // has only the owner's copy (ciphertext to the transcript key); it is opened here, in the browser. Campaign text is
 // buyer-written: it is rendered as plain text only.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { openSealed, type AnswerSource, type Answers } from '@as/shared';
 import { Lock } from 'pixelarticons/react/Lock';
 import { Button, Card, Pill } from '@/components/ui';
@@ -20,14 +20,26 @@ export function ApprovalQueue() {
   const [serverKey, setServerKey] = useState<string | null | undefined>(undefined);
   const [deciding, setDeciding] = useState<string | null>(null);
   const [decideError, setDecideError] = useState<string | null>(null);
+  const [staleList, setStaleList] = useState(false); // a decision went through but the reload after it failed
   const { transcriptKey, unlock, busy, error } = useTranscriptKey(serverKey);
 
-  const load = useCallback(async () => {
-    if (!session) return;
-    const r = await getApprovals(session.sessionToken).catch(() => null);
-    if (r) { setPending(r.pending); setServerKey(r.transcriptPublicKey); }
-  }, [session]);
+  // The session this component currently shows. A response that arrives after a wallet switch belongs to the old
+  // session and is dropped, so one owner's pending answers never render under another owner's session.
+  const token = session?.sessionToken ?? null;
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+
+  /** Returns false when the list could not be refreshed. */
+  const load = useCallback(async (): Promise<boolean> => {
+    if (!token) return true;
+    const r = await getApprovals(token).catch(() => null);
+    if (tokenRef.current !== token) return true; // stale: a different session is active now
+    if (r) { setPending(r.pending); setServerKey(r.transcriptPublicKey); setStaleList(false); }
+    return !!r;
+  }, [token]);
   useEffect(() => {
+    // New session (or signed out): forget the previous owner's queue before loading this one.
+    setPending([]); setServerKey(undefined); setDecideError(null); setStaleList(false); setDeciding(null);
     void load();
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
@@ -45,16 +57,20 @@ export function ApprovalQueue() {
   if (!session || pending.length === 0) return null;
 
   const decide = async (campaignId: string, decision: 'approve' | 'reject') => {
+    const t = session.sessionToken;
     setDeciding(campaignId); setDecideError(null);
+    let failed: string | null = null;
     try {
-      await decideApproval(session.sessionToken, campaignId, decision);
+      await decideApproval(t, campaignId, decision);
     } catch (e) {
       // NO_PENDING: already decided elsewhere or expired; the reload below drops it from the list.
-      if (!(e instanceof ApiError && e.code === 'NO_PENDING')) setDecideError(e instanceof Error ? e.message : 'Could not save your decision.');
-    } finally {
-      setDeciding(null);
-      await load();
+      if (!(e instanceof ApiError && e.code === 'NO_PENDING')) failed = e instanceof Error ? e.message : 'Could not save your decision.';
     }
+    const reloaded = await load();
+    if (tokenRef.current !== t) return; // the session changed meanwhile; its own state was already reset
+    setDeciding(null);
+    if (failed) setDecideError(failed);
+    else if (!reloaded) setStaleList(true);
   };
 
   return (
@@ -71,6 +87,7 @@ export function ApprovalQueue() {
       {!transcriptKey && <p className="text-sm text-muted">Unlock with a wallet signature to read each answer before approving it. You can reject without unlocking.</p>}
       {error && <p role="alert" className="text-sm font-bold text-danger-ink">{error}</p>}
       {decideError && <p role="alert" className="text-sm font-bold text-danger-ink">{decideError}</p>}
+      {staleList && <p role="status" className="text-sm text-danger-ink">Your decision was saved, but this list couldn&apos;t refresh. It retries every few seconds.</p>}
       <ul className="flex flex-col gap-3">
         {opened.map(({ p, answers, sources }) => (
           <li key={p.campaignId} className="flex flex-col gap-3 rounded-2xl border border-line p-4">
