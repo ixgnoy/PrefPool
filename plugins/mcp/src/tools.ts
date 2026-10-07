@@ -97,11 +97,11 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       minimumRewardSol: z.number().nonnegative(), dailyLimit: z.number().int().positive(),
       profile: z.object({ country: z.string().optional(), ageBand: z.string().optional(), occupationGroup: z.string().optional() }).optional(),
       matchAudience: z.boolean().optional(),
-      approvalMode: z.enum(['auto', 'approve_sensitive', 'approve_all']).default('auto'),
+      approvalMode: z.enum(['auto', 'approve_sensitive', 'approve_all']).optional(),
     },
-  }, async ({ profile, matchAudience, ...p }) => {
+  }, async ({ profile, matchAudience, approvalMode, ...p }) => {
     const s = store.load();
-    store.save({ ...s, policy: p, profile: profile ?? s.profile, matchAudience: matchAudience ?? s.matchAudience ?? false });
+    store.save({ ...s, policy: { ...p, approvalMode: approvalMode ?? s.policy?.approvalMode ?? 'auto' }, profile: profile ?? s.profile, matchAudience: matchAudience ?? s.matchAudience ?? false });
     return text('Policy saved locally.');
   });
 
@@ -141,9 +141,13 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
     const verdict = ownerVerdict(s, c); // enforced in code, not by the model
     if (!verdict.ok) return fail(`Refused by owner policy: ${verdict.reason}`);
     const need = approvalNeeded(s.policy ?? DEFAULT_POLICY, c);
+    // ownerApproved is the model's claim that it asked the owner; approve_all (web queue) is the mode that does not rely on it.
     if (need === 'chat' && !ownerApproved) {
       return fail('This campaign asks about your owner (spending or personal life) and their policy requires their OK first. '
         + 'Ask the owner; only after they agree, call submit_answer again with ownerApproved: true.');
+    }
+    if (need === 'web') { // G10 replaces this with the local hold + web approval queue
+      return fail('Owner approval is on for every answer (approve_all); the web approval queue is not available in this version, so this answer is not sent.');
     }
     if (!answersValid(c.questions, answers)) return fail('Answers must cover every question with a listed option (0-based index) or 1..5.');
     const me = (await api('/agents/me', { headers: agentHeaders() })) as { address: string; transcriptPublicKey?: string | null };

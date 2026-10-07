@@ -170,6 +170,25 @@ describe('agent-survey MCP plugin', () => {
     await w.srv.close();
   });
 
+  it('set_policy without approvalMode keeps the stored mode', async () => {
+    const { call } = await connect({ serverUrl: 'http://x', webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')) });
+    const base = { allowedCategories: ['payments'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5 };
+    await call('set_policy', { ...base, approvalMode: 'approve_sensitive' });
+    await call('set_policy', { ...base, dailyLimit: 3 });
+    expect((await call('get_policy')).json).toMatchObject({ approvalMode: 'approve_sensitive', dailyLimit: 3 });
+  });
+
+  it('approve_all fails closed until the web approval queue exists', async () => {
+    const w = await world();
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir: mkdtempSync(join(tmpdir(), 'as-')), agentToken: w.agentToken });
+    await call('set_policy', { allowedCategories: ['payments', 'blockers', 'spending'], blockedCategories: [], minimumRewardSol: 0, dailyLimit: 5, approvalMode: 'approve_all' });
+    const refused = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 }, ownerApproved: true });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toMatch(/approve_all/);
+    expect((await w.deps.db.query(`select 1 from envelopes where campaign_id = $1`, [w.campaignId])).length).toBe(0);
+    await w.srv.close();
+  });
+
   it('an agent wallet creates its own campaign and funds it against the real server (sign-in, build, local check + sign, submit)', async () => {
     const env = await makeDeps(Date.now());
     const srv = await listen(env.app, env.deps, env.relayRef);
