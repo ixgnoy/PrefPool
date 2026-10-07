@@ -114,6 +114,8 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   const FINAL_SUBMIT_CODES = new Set(['LATE', 'NOT_ACTIVE', 'ABSTAINED', 'DUPLICATE_HUMAN', 'REJECTED_BY_OWNER']);
   /** Re-queue refusals that will never succeed (the copy can no longer be queued for this campaign). */
   const FINAL_QUEUE_CODES = new Set(['LATE', 'NOT_ACTIVE', 'ABSTAINED', 'NOT_YOUR_ANSWER']);
+  /** Refusals of a new approval request that will never succeed: submit_answer drops the local hold (plus any 400/403). */
+  const FINAL_REQUEST_CODES = new Set([...FINAL_SUBMIT_CODES, ...FINAL_QUEUE_CODES, 'ANSWERED', 'APPROVAL_EXISTS']);
   type FlushResult = { submitted: string[]; rejected: string[]; waiting: string[]; expired: string[]; failed: { campaignId: string; error: string }[] };
   /**
    * Answers held for the owner's web approval: send the approved ones, record the rejected ones as abstains, drop the expired.
@@ -347,14 +349,15 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
       if (!copy) return fail('Owner approval is on (approve_all), but the owner has not unlocked "My answers" on the web, so the queue cannot show them this answer. '
         + `Ask them to open ${opts.webUrl}/seller/activity?tab=answers once, then try again.`);
       // Held locally first: if the request reaches the server but this process dies before recording it, the owner could
-      // approve an answer this machine no longer has. A refusal (4xx) rolls the hold back; anything else is re-sent by the flush.
+      // approve an answer this machine no longer has. Only a final refusal rolls the hold back; anything else
+      // (paused agent, network, 5xx) keeps it and the flush re-sends the request.
       store.update((cur) => ({ ...cur, pending: { ...(cur.pending ?? {}), [campaignId]: { envelope, copy, deadlineMs: c.deadlineMs } } }));
       try {
         await api(`/agents/campaigns/${campaignId}/approval`, { method: 'POST', headers: agentHeaders(), body: JSON.stringify(copy) });
       } catch (e) {
-        const { status, message } = apiError(e);
-        if (status === undefined || status >= 500) {
-          return text({ pendingApproval: true, sources: meta.sources, note: 'Sealed and held on this machine, but the approval request did not reach the server; '
+        const { status, code, message } = apiError(e);
+        if (!(status === 400 || status === 403 || (code && FINAL_REQUEST_CODES.has(code)))) {
+          return text({ pendingApproval: true, sources: meta.sources, note: `Sealed and held on this machine, but the approval request was not accepted yet (${message}); `
             + 'check_approvals (or list_campaigns) sends it again.' });
         }
         store.update((cur) => { const { [campaignId]: _, ...rest } = cur.pending ?? {}; return { ...cur, pending: rest }; });

@@ -487,6 +487,32 @@ describe('agent-survey MCP plugin', () => {
     await w.srv.close();
   });
 
+  it('a held answer survives an AGENT_PAUSED refusal of the approval request, and the flush re-sends it', async () => {
+    const w = await world();
+    await withTranscriptKey(w);
+    const dataDir = mkdtempSync(join(tmpdir(), 'as-'));
+    // The owner pauses the agent between its campaign lookup and the approval request: answer that one request as the server would.
+    let pausedOnce = false;
+    const fetchFn: typeof fetch = async (input, init) => {
+      if (!pausedOnce && String(input).endsWith('/approval') && init?.method === 'POST') {
+        pausedOnce = true;
+        return new Response(JSON.stringify({ error: 'this agent is paused by its owner', code: 'AGENT_PAUSED' }), { status: 409 });
+      }
+      return fetch(input, init);
+    };
+    const { call } = await connect({ serverUrl: w.serverUrl, webUrl: 'http://w', dataDir, agentToken: w.agentToken, fetchFn });
+    await call('set_policy', approveAll);
+    const r = await call('submit_answer', { campaignId: w.campaignId, answers: { q1: 0, q2: 3, q3: 1 } });
+    expect(r.isError).toBe(false);
+    expect(r.json.pendingApproval).toBe(true);
+    expect(r.text).toMatch(/sends it again/);
+    expect(JSON.parse(readFileSync(join(dataDir, 'agent-survey.json'), 'utf8')).pending[w.campaignId]).toBeDefined();
+    expect((await w.deps.db.query(`select 1 from answer_approvals where campaign_id = $1`, [w.campaignId])).length).toBe(0);
+    expect((await call('check_approvals')).json.waiting).toEqual([w.campaignId]);
+    expect((await w.deps.db.query(`select 1 from answer_approvals where campaign_id = $1`, [w.campaignId])).length).toBe(1);
+    await w.srv.close();
+  });
+
   it('a flush does not overwrite what another tool saved meanwhile', async () => {
     const { w, call, local } = await heldAndApproved();
     const [flushed, fact] = await Promise.all([
