@@ -151,15 +151,18 @@ const SECRET_VALUE = [
   /\b(?:secrets?|tokens?|pins?|otps?|pass ?codes?|seeds?)\s*(?:is|are|was|=|:)\s*\S/i,
   /\b(?:seed\s+phrases?|private\s+keys?|mnemonics?)\b/i,  /\[\s*(?:\d{1,3}\s*,\s*){15,}\d{1,3}/, // a JSON byte array (solana-keygen id.json, even partial)
 ];
-// A BIP39-style seed phrase written out: 12+ lowercase 3-8 letter words in a row with no digits or punctuation and no
-// English function words (BIP39 has none of these), so ordinary sentences break the run.
+// A BIP39-style seed phrase written out (any case, comma-separated or numbered): 12+ 3-8 letter words in a row with no
+// other digits or punctuation and no English function words (BIP39 has none of these), so ordinary sentences break the run.
 const FUNCTION_WORDS = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'are', 'was', 'were', 'has', 'have', 'had', 'but', 'not',
   'you', 'your', 'our', 'his', 'her', 'its', 'per', 'they', 'them', 'their', 'what', 'when', 'which', 'who', 'how', 'than', 'then', 'does', 'did',
   'can', 'will', 'would', 'should', 'could', 'also', 'very', 'just', 'some', 'most', 'more', 'every', 'each', 'uses', 'used', 'spends', 'month', 'week']);
 const SEED_RUN = 12;
 const looksLikeSeedPhrase = (text: string) => {
   let run = 0;
-  for (const w of text.split(/\s+/)) {
+  // Case-folded; commas/semicolons separate words; list numbers ("1.", "2)") are skipped or stripped when glued ("1.abandon").
+  for (const token of text.toLowerCase().split(/[\s,;]+/)) {
+    if (!token || /^\d{1,2}[.):]?$/.test(token)) continue;
+    const w = token.replace(/^\d{1,2}[.):-]/, '');
     run = /^[a-z]{3,8}$/.test(w) && !FUNCTION_WORDS.has(w) ? run + 1 : 0;
     if (run >= SEED_RUN) return true;
   }

@@ -406,6 +406,24 @@ describe('likert anchor helpers (web prefill)', () => {
 });
 
 describe('looksLikeSecret (owner fact store)', () => {
+  it('refuses seed phrases written with commas, title case or list numbers', () => {
+    for (const t of [
+      'abandon, ability, able, about, above, absent, absorb, abstract, absurd, abuse, access, accident',
+      'abandon,ability,able,about,above,absent,absorb,abstract,absurd,abuse,access,accident',
+      'Abandon Ability Able About Above Absent Absorb Abstract Absurd Abuse Access Accident',
+      '1. abandon 2. ability 3. able 4. about 5. above 6. absent 7. absorb 8. abstract 9. absurd 10. abuse 11. access 12. accident',
+      '1) abandon 2) ability 3) able 4) about 5) above 6) absent 7) absorb 8) abstract 9) absurd 10) abuse 11) access 12) accident',
+      '1.abandon 2.ability 3.able 4.about 5.above 6.absent 7.absorb 8.abstract 9.absurd 10.abuse 11.access 12.accident',
+    ]) {
+      expect(looksLikeSecret(t), t).toBe(true);
+    }
+  });
+  it('accepts short facts and lists with long words', () => {
+    for (const t of ['spends about $40 a month on AI tools', 'has two kids',
+      'hobbies: cooking, gardening, hiking, reading, painting, swimming, photography, knitting, camping, baking, journaling, volunteering']) {
+      expect(looksLikeSecret(t), t).toBe(false);
+    }
+  });
   it('refuses credentials named or pasted in first-person text', () => {
     for (const t of ['my password is hunter2', 'my api key is sk-abc', 'token: 123abc', 'uses ghp_abcdEFGH1234',
       'Bearer 9fK2xQ7mL4pR8vT1wZ3yB6nC5dE0gH2jAq', 'my seed phrase starts with apple', 'my PIN is 4321', 'OPENAI_API_KEY in .env',
