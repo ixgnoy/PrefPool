@@ -49,7 +49,26 @@ export async function buildSignedSettleTx(
   return tx;
 }
 
-/** Signed tx from a browser wallet (base64) -> submitted signature. */
-export async function submitSignedTx(connection: Connection, signedTxBase64: string): Promise<string> {
-  return connection.sendRawTransaction(Buffer.from(signedTxBase64, 'base64'), { skipPreflight: false, preflightCommitment: 'confirmed' });
+export const BLOCKHASH_NOT_FOUND = /blockhash not found/i;
+
+/** Signed tx from a browser wallet (base64) -> submitted signature. "Blockhash not found" in preflight is usually a
+ *  public-RPC node a few slots behind the one that issued the blockhash: retry briefly before giving up. */
+export async function submitSignedTx(connection: Connection, signedTxBase64: string, retries = 4, delayMs = 600): Promise<string> {
+  const raw = Buffer.from(signedTxBase64, 'base64');
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await connection.sendRawTransaction(raw, { skipPreflight: false, preflightCommitment: 'confirmed' });
+    } catch (e) {
+      if (attempt >= retries || !BLOCKHASH_NOT_FOUND.test(String((e as Error)?.message ?? e))) throw e;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
 }
+
+/** The user-facing reason for a refused submit: an expired blockhash just needs a fresh tx. */
+export const submitErrorMessage = (e: unknown) => {
+  const msg = String((e as Error)?.message ?? e);
+  return BLOCKHASH_NOT_FOUND.test(msg)
+    ? 'the transaction expired before it reached the network (approval or connection took too long). Nothing was sent: please try again.'
+    : `the network refused the transaction: ${msg.slice(0, 300)}`;
+};

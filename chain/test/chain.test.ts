@@ -10,7 +10,7 @@ import {
 } from '@as/shared';
 import {
   ESCROW_PROGRAM_ID, checkFundingTx, checkReportAgainstChain, escrowInstructionName, fundInstruction, refundInstruction,
-  settleFromReport, settleInstructions, type ChainReader,
+  settleFromReport, settleInstructions, submitErrorMessage, submitSignedTx, type ChainReader,
 } from '../src/index.js';
 
 const repSk = ed25519.utils.randomSecretKey();
@@ -112,5 +112,25 @@ describe('relayer', () => {
   it('submits when the escrow is open and the report checks out', async () => {
     const out = await settleFromReport({ report: report(16), reader: reader(escrow), ctx, submit: async (d) => `settled ${d.campaignId.slice(0, 4)}` });
     expect(out).toEqual({ status: 'submitted', txHash: 'settled cccc' });
+  });
+});
+
+describe('submitSignedTx', () => {
+  const tx = Buffer.from('x').toString('base64');
+  const conn = (failures: number, msg = 'Transaction simulation failed: Blockhash not found') => {
+    let calls = 0;
+    return { calls: () => calls, c: { sendRawTransaction: async () => { calls++; if (calls <= failures) throw new Error(msg); return 'sig'; } } as never };
+  };
+  it('retries a lagging "Blockhash not found", but not other errors', async () => {
+    const a = conn(2);
+    expect(await submitSignedTx(a.c, tx, 4, 1)).toBe('sig');
+    expect(a.calls()).toBe(3);
+    const b = conn(9);
+    await expect(submitSignedTx(b.c, tx, 2, 1)).rejects.toThrow(/Blockhash not found/);
+    expect(b.calls()).toBe(3);
+    const c = conn(1, 'insufficient funds');
+    await expect(submitSignedTx(c.c, tx, 4, 1)).rejects.toThrow(/insufficient/);
+    expect(c.calls()).toBe(1);
+    expect(submitErrorMessage(new Error('Blockhash not found'))).toMatch(/expired.*try again/);
   });
 });
