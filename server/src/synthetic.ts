@@ -9,7 +9,12 @@ import type { CampaignView } from './views.js';
 
 /** Upsert the 29 synthetic agents; their tokens are derived from SYNTHETIC_SECRET so restarts keep working. */
 export async function ensureSyntheticAgents(db: Db, secret: string) {
-  for (const a of SYNTHETIC_AGENTS) {
+  // One read; write only agents that are missing or whose token no longer matches SYNTHETIC_SECRET (normally none).
+  // ponytail: edits to an existing profile/policy in syntheticProfiles.ts are not re-synced; change SYNTHETIC_SECRET
+  // (or delete the agent rows) to force a rewrite.
+  const have = new Map((await db.query<{ id: string; token_hash: string }>(
+    `select id, token_hash from agents where id = any($1::text[])`, [SYNTHETIC_AGENTS.map((a) => a.profile.id)])).map((r) => [r.id, r.token_hash]));
+  for (const a of SYNTHETIC_AGENTS.filter((a) => have.get(a.profile.id) !== hashToken(syntheticToken(secret, a.profile.id)))) {
     // Demo cohort: simulated personhood with a unique, stable nullifier (reported apart from World ID verified humans).
     await db.query(
       `insert into agents (id, kind, address, token_hash, policy, profile, personhood_kind, personhood_nullifier, calibrated_until) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, 'simulated', $7, now() + interval '365 days')
