@@ -93,7 +93,7 @@ describe('lint regressions from review (no false blocks, no missed negations)', 
     expect(lk('How often do you pay online? (1: never, 5: always)')).toEqual([]);
     expect(lk('On a scale from 1 (never) to 5 (always), how often do you pay online?')).toEqual([]);
     expect(lk('How often do you pay online? (1 = never 5 = always)')).toEqual([]);
-    expect(lk('How often do you pay online? (1 – never, 5 – always)')).toEqual([]);
+    expect(lk('How often do you pay online? (1 \u2013 never, 5 \u2013 always)')).toEqual([]);
     expect(lk('How often do you pay online?')).toContain('likert_anchors');
     expect(lk('On a 1-5 scale, how often do you pay online?')).toContain('likert_anchors');
   });
@@ -106,14 +106,44 @@ describe('lint regressions from review (no false blocks, no missed negations)', 
     expect(rules(sc('Pick one', ['a', 'b', 'c', 'd', 'e', 'None yet', 'Not sure']), 'block')).toContain('too_many_options');
   });
   it('accepts curly apostrophes', () => {
-    expect(rules(sc('Don’t you agree crypto is better?', ['Crypto is better', 'Cards are better', 'Don’t know']), 'warn')).toEqual(expect.arrayContaining(['leading', 'negation']));
-    expect(rules(sc('Don’t you agree crypto is better?', ['Crypto is better', 'Cards are better', 'Don’t know']), 'warn')).not.toContain('no_escape');
-    expect(rules(sc('How often is a task blocked because you can’t pay?', ['Daily', 'Weekly', 'None yet']), 'warn')).toContain('negation');
+    expect(rules(sc('Don\u2019t you agree crypto is better?', ['Crypto is better', 'Cards are better', 'Don\u2019t know']), 'warn')).toContain('leading');
+    expect(rules(sc('Don\u2019t you agree crypto is better?', ['Crypto is better', 'Cards are better', 'Don\u2019t know']), 'block')).toContain('negated_stem');
+    expect(rules(sc('Don\u2019t you agree crypto is better?', ['Crypto is better', 'Cards are better', 'Don\u2019t know']), 'warn')).not.toContain('no_escape');
+    expect(rules(sc('How often is a task blocked because you can\u2019t pay?', ['Daily', 'Weekly', 'None yet']), 'warn')).toContain('negation');
   });
   it('does not treat comparison signs as markup', () => {
     expect(rules(sc('How fast is checkout?', ['< a second', '<1s', '<a few ms', 'Not sure']), 'block')).toEqual([]);
     expect(rules(sc('Pick', ['<script>x', 'b']), 'block')).toContain('markup');
     expect(rules(sc('Pick', ['<!-- hi -->', 'b']), 'block')).toContain('markup');
+  });
+});
+
+describe('lint re-review regressions (contracted negations, broader anchors)', () => {
+  it('blocks contracted negations followed by a subject', () => {
+    const blocks = (text: string) => rules(sc(text, ['a', 'b', 'None yet']), 'block');
+    expect(blocks("Which tools don't you use?")).toContain('negated_stem');
+    expect(blocks("Which payment rails can't you access today?")).toContain('negated_stem');
+    expect(blocks('Which payment rails can\u2019t you access today?')).toContain('negated_stem');
+    expect(blocks('Which rails cannot you access?')).toContain('negated_stem');
+    expect(blocks("Which tools won't your owner allow?")).toContain('negated_stem');
+    expect(blocks("Why don't you pay with crypto?")).toContain('negated_stem');
+  });
+  it('keeps the demo likert stem a soft negation', () => {
+    const q: Question = { id: 'q2', type: 'likert_5', text: "How often is a task blocked because you can't log in or pay? (1 = never, 5 = very often)" };
+    expect(rules(q, 'block')).toEqual([]);
+    expect(rules(q, 'warn')).toContain('negation');
+  });
+  it('accepts likert labels in any script and numeric labels', () => {
+    const lk = (text: string) => rules({ id: 'q', type: 'likert_5', text }, 'block');
+    expect(lk('Как часто вы платите онлайн? (1 = никогда, 5 = ежедневно)')).toEqual([]);
+    expect(lk('How many failed payments last month? (1 = 0 times, 5 = 10+ times)')).toEqual([]);
+    expect(lk('How satisfied are you with checkout? 1 Very dissatisfied - 5 Very satisfied')).toEqual([]);
+    expect(lk('How satisfied are you with checkout?')).toContain('likert_anchors');
+    expect(lk('On a 1-5 scale, how satisfied are you with checkout?')).toContain('likert_anchors');
+    expect(lk('From 1 to 5 how satisfied are you with checkout?')).toContain('likert_anchors');
+  });
+  it('only strips anchor text from likert questions', () => {
+    expect(rules(sc('Which 1 tool do you NOT use out of these 5 tools?', ['a', 'b', 'None yet']), 'block')).toContain('negated_stem');
   });
 });
 

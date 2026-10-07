@@ -18,18 +18,22 @@ const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
 const norm = (s: string) => s.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}$%.+#]+/gu, ' ').trim();
 
 // Likert anchors: "(1 = never, 5 = very often)", "1 - never ... 5 - always", "1: never, 5: always",
-// "from 1 (never) to 5 (always)". A bare "1-5 scale" is not labeled: the char after the separator must be a letter.
-const ANCHOR = String.raw`\b1\s*(?:[=:\-\u2013]\s*|\(\s*)[a-z][^\n]*?\b5\s*(?:[=:\-\u2013]\s*|\(\s*)[a-z][^,;.?)\n]*\)?`;
-const LIKERT_ANCHORS = new RegExp(ANCHOR, 'i');
-const LIKERT_ANCHOR_SPAN = new RegExp(ANCHOR, 'gi');
-/** Anchor labels and parentheticals are labels, not the question's logic. */
-const stemOnly = (s: string) => s.replace(LIKERT_ANCHOR_SPAN, ' ').replace(/\([^)]*\)/g, ' ');
+// "from 1 (never) to 5 (always)", "1 Very dissatisfied - 5 Very satisfied", "(1 = 0 times, 5 = 10+ times)".
+// Labels start with a letter (any script) or a digit. "1-5 scale" and "from 1 to 5" are not labels.
+const ANCHOR_SEP = String.raw`\s*(?:[=:\-\u2013]\s*|\(\s*)|\s+`;
+const ANCHOR = String.raw`\b1(?:${ANCHOR_SEP})(?!5\b|to\b)(?:\p{L}|\d)[^\n]*?\b5(?:${ANCHOR_SEP})(?:\p{L}|\d)[^,;.?)\n]*\)?`;
+const LIKERT_ANCHORS = new RegExp(ANCHOR, 'iu');
+const LIKERT_ANCHOR_SPAN = new RegExp(ANCHOR, 'giu');
+/** Likert anchor labels and parentheticals are labels, not the question's logic. Anchors only exist on likert questions. */
+const stemOnly = (q: Question) => (q.type === 'likert_5' ? q.text.replace(LIKERT_ANCHOR_SPAN, ' ') : q.text).replace(/\([^)]*\)/g, ' ');
 
 // Small models answer "which do you NOT use" as if the NOT were absent (inverse scaling, NeQA).
 const HARD_NEGATION = [
   /\bNOT\b/,
   /\bexcept\b|(?<!\bat\s)\bleast\b/i,
   /\b(do|does|did|have|has|are|is|was|were|would|will|should|can|could)(\s+(you|they|we|your\s+\w+))?\s+(not|never)\b/i,
+  // Contracted negation then a subject: "which tools don't you use", "can't your owner", "cannot you".
+  /\b(?:(?:do|does|did|have|has|are|is|was|were|would|wo|should|ca|could)n['\u2019]t|cannot)\s+(you|they|we|your\s+\w+)\b/i,
 ];
 const SOFT_NEGATION = /\b(can['\u2019]t|cannot|don['\u2019]t|doesn['\u2019]t|isn['\u2019]t|aren['\u2019]t|won['\u2019]t|wouldn['\u2019]t|never|no)\b/i;
 // Options that point at other options: accuracy collapses 30-50% when "none of the above" is the right answer.
@@ -57,7 +61,7 @@ const ACQUIESCENCE = [['yes', 'no'], ['true', 'false'], ['agree', 'disagree']];
 export function lintQuestion(q: Question): LintIssue[] {
   const out: LintIssue[] = [];
   const issue = (rule: string, level: LintLevel, message: string) => out.push({ questionId: q.id, rule, level, message: `${q.id}: ${message}` });
-  const stem = stemOnly(q.text);
+  const stem = stemOnly(q);
   const opts = q.options ?? [];
 
   if (MARKUP.test(q.text) || opts.some((o) => MARKUP.test(o))) issue('markup', 'block', 'no links, HTML or code in a question');
