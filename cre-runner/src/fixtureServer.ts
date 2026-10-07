@@ -29,8 +29,8 @@ export function makeFixture(opts: {
 }): Fixture {
   const programId = opts.programId ?? FIXTURE_PROGRAM_ID;
   const questions: Question[] = [
-    { id: 'q1', type: 'single_choice', text: 'Which slogan makes you most likely to try the app?', options: ['Pay less, live more', 'Your money, faster'] },
-    { id: 'q2', type: 'likert_5', text: 'How much do you trust new e-wallet brands?' },
+    { id: 'q1', type: 'single_choice', text: 'Which slogan makes you most likely to try the app?', options: ['Pay less, live more', 'Your money, faster', 'Not sure'] },
+    { id: 'q2', type: 'likert_5', text: 'How much do you trust new e-wallet brands? (1 = not at all, 5 = completely)' },
   ];
   const registered = Array.from({ length: opts.respondents }, () => addressFromSeed(`fixture:${randomHex32()}`));
   const envelopes = registered.map((a, i) => ({

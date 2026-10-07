@@ -12,7 +12,7 @@ import { createCampaign, getCampaign } from '@/lib/api';
 import { CATEGORIES, SENSITIVE, categoryLabel } from '@/lib/policy';
 import { AGES, COUNTRIES, COUNTRY_CODES, OCCUPATIONS, ageValue } from '@/lib/audience';
 import { LAMPORTS, REFUND_DELAY_MS, fmtSol, fmtTime, sol } from '@/lib/campaign';
-import { MAX_PAYEES, MAX_SINGLE_CHOICE_OPTIONS } from '@as/shared';
+import { MAX_PAYEES, MAX_SINGLE_CHOICE_OPTIONS, hasLikertAnchors, withLikertAnchors } from '@as/shared';
 import type { CampaignSpec, Question } from '@as/shared';
 import { ArrowDown } from 'pixelarticons/react/ArrowDown';
 import { ArrowUp } from 'pixelarticons/react/ArrowUp';
@@ -37,7 +37,7 @@ const DEFAULT: Draft = {
   questions: [
     { id: 'q1', type: 'single_choice', text: "Which ways can you pay for things on your owner's behalf today?", options: ['Card through a payment service', 'Crypto wallet', 'Card and crypto wallet', 'None yet'] },
     { id: 'q2', type: 'likert_5', text: "How often is a task blocked because you can't log in or pay? (1 = never, 5 = very often)", category: 'blockers' },
-    { id: 'q3', type: 'single_choice', text: 'Roughly how much does your owner spend on AI tools per month?', options: ['Under $20', '$20-100', 'Over $100'], category: 'spending' },
+    { id: 'q3', type: 'single_choice', text: 'Roughly how much does your owner spend on AI tools per month?', options: ['Under $20', '$20-100', 'Over $100', 'Not sure'], category: 'spending' },
   ],
   rewardSol: 0.01, maxResponses: 20, minCohort: 15, verifiedOnly: false, calibratedOnly: false,
 };
@@ -228,7 +228,7 @@ export default function NewCampaign() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Mono className="text-xs text-muted">{q.id}</Mono>
                     <select className="rounded-lg border border-line bg-surface px-2 py-1 text-xs font-bold" value={q.type}
-                      onChange={(e) => setQ(i, e.target.value === 'likert_5' ? { type: 'likert_5', options: undefined } : { type: 'single_choice', options: q.options ?? ['', ''] })}>
+                      onChange={(e) => setQ(i, e.target.value === 'likert_5' ? { type: 'likert_5', options: undefined, text: withLikertAnchors(q.text) } : { type: 'single_choice', options: q.options ?? ['', ''] })}>
                       <option value="single_choice">Single choice</option><option value="likert_5">1–5 scale</option>
                     </select>
                     <select className={cx('ml-auto rounded-full border px-2 py-1 text-[11px] font-bold', q.category ? 'border-warn text-warn-ink' : 'border-dashed border-line text-muted')}
@@ -242,7 +242,7 @@ export default function NewCampaign() {
                       <button type="button" aria-label="Remove question" onClick={() => set('questions', d.questions.filter((_, j) => j !== i))} className="rounded p-1 text-muted hover:text-danger-ink"><Close aria-hidden width={16} height={16} /></button>
                     </div>
                   </div>
-                  <input className={cx(input, 'font-bold')} value={q.text} placeholder="Question text" onChange={(e) => setQ(i, { text: e.target.value })} />
+                  <input className={cx(input, 'font-bold')} value={q.text} placeholder={q.type === 'likert_5' ? 'Question text (1 = not at all, 5 = very much)' : 'Question text'} onChange={(e) => setQ(i, { text: e.target.value })} />
                   {q.type === 'single_choice' ? (
                     <div className="flex flex-col gap-1.5">
                       {(q.options ?? []).map((o, k) => (
@@ -253,7 +253,8 @@ export default function NewCampaign() {
                       ))}
                       {(q.options?.length ?? 0) < MAX_OPTIONS && <button type="button" className="self-start text-[13px] font-bold text-blue" onClick={() => setQ(i, { options: [...(q.options ?? []), ''] })}>+ Add option</button>}
                     </div>
-                  ) : <div className="flex flex-wrap gap-1.5">{['1 · not at all', '2', '3', '4', '5 · very likely'].map((o) => <span key={o} className="rounded-lg border border-line px-2.5 py-1 text-[13px]">{o}</span>)}</div>}
+                  ) : <div className="flex flex-wrap gap-1.5">{['1', '2', '3', '4', '5'].map((o) => <span key={o} className="rounded-lg border border-line px-2.5 py-1 text-[13px]">{o}</span>)}
+                    {!hasLikertAnchors(q.text) && <span className="basis-full text-xs font-bold text-warn-ink">Label both ends in the question, e.g. "(1 = not at all, 5 = very much)". Screening rejects a 1–5 question without them.</span>}</div>}
                   {q.category && <span className="text-xs font-bold text-warn-ink">Agents whose owners block this category will abstain from the whole campaign.</span>}
                 </Card>
               ))}

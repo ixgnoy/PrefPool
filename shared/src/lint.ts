@@ -29,7 +29,11 @@ const ANCHOR = String.raw`\b1(?:${ANCHOR_SEP})(?!5\b|to\b)(?:\p{L}|\d)[^\n]*?\b5
 const SPACE_ANCHOR = String.raw`\b1\s+\p{Lu}[^\n]*?\b5\s+\p{Lu}[^,;.?)\n]*\)?`;
 const LIKERT_ANCHORS = [new RegExp(ANCHOR, 'iu'), new RegExp(SPACE_ANCHOR, 'u')];
 const LIKERT_ANCHOR_SPANS = [new RegExp(ANCHOR, 'giu'), new RegExp(SPACE_ANCHOR, 'gu')];
-const hasLikertAnchors = (s: string) => LIKERT_ANCHORS.some((r) => r.test(s));
+/** True when a 1-5 question labels both ends ("(1 = never, 5 = very often)" and the other accepted forms). */
+export const hasLikertAnchors = (s: string) => LIKERT_ANCHORS.some((r) => r.test(s));
+/** Default end labels for a 1-5 question, appended only when the text has none (web editor prefill). */
+export const DEFAULT_LIKERT_ANCHORS = '(1 = not at all, 5 = very much)';
+export const withLikertAnchors = (text: string) => (hasLikertAnchors(text) ? text : `${text.trim()} ${DEFAULT_LIKERT_ANCHORS}`.trim());
 const stripLikertAnchors = (s: string) => LIKERT_ANCHOR_SPANS.reduce((t, r) => t.replace(r, ' '), s);
 /** Likert anchor labels and parentheticals are labels, not the question's logic. Anchors only exist on likert questions. */
 const stemOnly = (q: Question) => (q.type === 'likert_5' ? stripLikertAnchors(q.text) : q.text).replace(/\([^)]*\)/g, ' ');

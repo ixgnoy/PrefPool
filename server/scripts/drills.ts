@@ -2,7 +2,7 @@
 //   npx tsx scripts/drills.ts answer <campaignId>        BUYER2 as respondent agent: answer twice → 204 then 409 DUPLICATE
 //   npx tsx scripts/drills.ts late <campaignId>          answer after the deadline → 409 (LATE, or NOT_ACTIVE once the tick moved on)
 //   npx tsx scripts/drills.ts rejected                   home-address question → 422 REJECTED before funding
-//   npx tsx scripts/drills.ts create <category> <min>    create + print { campaignId, accessToken } (e.g. gaming 15 for the cohort drill)
+//   npx tsx scripts/drills.ts create <category> <min>    create + print { campaignId, accessToken } (e.g. spending 15 for the cohort drill)
 //   Wallets: BUYER_SECRET_KEY / BUYER2_SECRET_KEY (base58 or JSON byte array, like RELAYER_SECRET_KEY).
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { addressFromBytes, bytesToHex, sealEnvelope, utf8ToBytes } from '@as/shared';

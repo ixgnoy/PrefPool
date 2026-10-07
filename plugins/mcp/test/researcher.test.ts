@@ -164,8 +164,13 @@ describe('draft_campaign', () => {
       questions: [{ id: 'q1', type: 'single_choice', text: 'Which do you use?', options: ['Card', 'Crypto', 'Both'] }] });
     expect(both.isError).toBe(true);
     expect(both.text).toMatch(/refers to other options/);
-    expect((await call('draft_campaign', { title: 'x', category: 'brand',
-      questions: [{ id: 'q1', type: 'single_choice', text: 'Which slogan?', options: ['A', 'B', 'Not sure'] }] })).text).toMatch(/unknown category: brand/);
+    // Category is a closed enum in the tool schema, so researcher agents see the allowed values up front.
+    const brand = await call('draft_campaign', { title: 'x', category: 'brand',
+      questions: [{ id: 'q1', type: 'single_choice', text: 'Which slogan?', options: ['A', 'B', 'Not sure'] }] });
+    expect(brand.isError).toBe(true);
+    expect(brand.text).toMatch(/tools_mcp/);
+    expect((await call('draft_campaign', { title: 'x', category: 'tools_mcp',
+      questions: [{ id: 'q1', type: 'single_choice', category: 'health', text: 'Which slogan?', options: ['A', 'B', 'Not sure'] }] })).isError).toBe(true);
     const draft = JSON.parse(Buffer.from(ok.json.fundingLink.split('#draft=')[1], 'base64url').toString());
     expect(draft).toMatchObject({ title: 'Slogan test', rewardSol: 0.01, maxResponses: 20, minCohort: 10 });
     expect((await call('draft_campaign', { title: 't', category: 'tools_mcp', questions: [{ id: 'q1', type: 'likert_5', text: 'How often do you hit rate limits? (1 = never, 5 = very often)' }],

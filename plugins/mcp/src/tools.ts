@@ -1,7 +1,7 @@
 // plugins/mcp/src/tools.ts
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  answersValid, approvalNeeded, calibrationGate, canonicalAnswers, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
+  AGENT_CATEGORIES, OWNER_FACING_CATEGORIES, answersValid, approvalNeeded, calibrationGate, canonicalAnswers, evaluatePolicy, LAMPORTS_PER_SOL, matchesAudience, personhoodGate, randomHex32, screenCampaign, screenWarnings, sealEnvelope,
   shownQuestion,
   type CampaignSpec,
 } from '@as/shared';
@@ -216,14 +216,17 @@ export function createAgentSurveyServer(opts: PluginOptions): McpServer {
   const programId = async () =>
     ((await api('/config/public').catch(() => null)) as { programId?: string } | null)?.programId ?? DEFAULT_PROGRAM_ID;
 
+  /** Closed list: researcher agents see the allowed categories in the tool schema (sensitive ones are never askable). */
+  const askableCategory = z.enum([...AGENT_CATEGORIES, ...OWNER_FACING_CATEGORIES] as [string, ...string[]])
+    .describe('Agent categories are allowed by default; spending and personal_life reach only owners who opted in.');
   server.registerTool('draft_campaign', {
     description: 'Validate a research campaign (rewards in SOL on Solana devnet) and get the funding link: a human approves the SOL budget '
       + 'in their Solana wallet (Phantom, Solflare, Backpack). With createWithAgentWallet, the campaign is created by this agent\'s own wallet '
       + 'instead (then call fund_campaign).',
     inputSchema: {
-      title: z.string(), category: z.string(),
+      title: z.string(), category: askableCategory,
       questions: z.array(z.object({ id: z.string(), type: z.enum(['single_choice', 'likert_5']), text: z.string(),
-        options: z.array(z.string()).optional(), category: z.string().optional() })).min(1).max(5),
+        options: z.array(z.string()).optional(), category: askableCategory.optional() })).min(1).max(5),
       deadlineMinutes: z.number().int().min(2).max(7 * 24 * 60).default(10),
       rewardSol: z.number().min(0.001).max(10).default(0.01),
       maxResponses: z.number().int().min(1).max(20).default(20),

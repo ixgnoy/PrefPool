@@ -1,6 +1,6 @@
 // shared/test/lint.test.ts
 import { describe, expect, it } from 'vitest';
-import { lintCampaign, lintQuestion } from '../src/lint.js';
+import { hasLikertAnchors, lintCampaign, lintQuestion, withLikertAnchors } from '../src/lint.js';
 import type { Question } from '../src/types.js';
 
 const sc = (text: string, options: string[], id = 'q1'): Question => ({ id, type: 'single_choice', text, options });
@@ -391,5 +391,16 @@ describe('abuse lint (G4b final review): PIN rule only on value asks', () => {
     expect(blocks('What is the passcode your owner uses?')).toContain('credential_ask');
     expect(blocks("What is your owner's PIN?")).toContain('credential_ask');
     expect(blocks('Does your PIN start with 1?')).toContain('credential_ask');
+  });
+});
+
+describe('likert anchor helpers (web prefill)', () => {
+  it('detects anchors and appends default ones only when missing', () => {
+    expect(hasLikertAnchors('How often? (1 = never, 5 = very often)')).toBe(true);
+    expect(hasLikertAnchors('How much do you trust it?')).toBe(false);
+    expect(withLikertAnchors('How much do you trust it?')).toBe('How much do you trust it? (1 = not at all, 5 = very much)');
+    expect(withLikertAnchors('')).toBe('(1 = not at all, 5 = very much)');
+    expect(withLikertAnchors('How often? (1 = never, 5 = very often)')).toBe('How often? (1 = never, 5 = very often)');
+    expect(lintQuestion({ id: 'q1', type: 'likert_5', text: withLikertAnchors('How much do you trust new e-wallet brands?') }).map((i) => i.rule)).not.toContain('likert_anchors');
   });
 });
